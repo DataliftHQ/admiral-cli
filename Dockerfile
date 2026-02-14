@@ -13,4 +13,5 @@ CMD [ "-h" ]
 COPY scripts/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-COPY admiral /usr/bin/admiral
+ARG TARGETARCH
+COPY linux/${TARGETARCH}/admiral /usr/bin/admiral
