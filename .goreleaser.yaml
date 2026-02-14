@@ -70,8 +70,7 @@ docker_signs:
     args:
       - sign
       - --yes
-      - --bundle=${artifact}.sigstore.json
-      - ${artifact}
+      - ${artifact}@${digest}
 
 changelog:
   use: github
