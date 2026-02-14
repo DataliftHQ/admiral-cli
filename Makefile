@@ -56,33 +56,37 @@ verify:
 
 .PHONY: release # Tag and push the next version (auto-detected from commits).
 release:
-	@echo "Current version: $$(./tools/svu.sh current)"
-	@echo "Next version:    $$(./tools/svu.sh next)"
-	@echo ""
-	@read -p "Proceed? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
-	git tag -a $$(./tools/svu.sh next) -m "Release $$(./tools/svu.sh next)"
-	git push origin $$(./tools/svu.sh next)
+	@VERSION=$$(./tools/svu.sh next) && \
+	echo "Current version: $$(./tools/svu.sh current)" && \
+	echo "Next version:    $$VERSION" && \
+	echo "" && \
+	read -p "Proceed? [y/N] " confirm && [ "$$confirm" = "y" ] && \
+	git tag -a $$VERSION -m "Release $$VERSION" && \
+	git push origin $$VERSION
 
 .PHONY: release-patch # Tag and push a patch release.
 release-patch:
-	@echo "Current version: $$(./tools/svu.sh current)"
-	@echo "Next version:    $$(./tools/svu.sh patch)"
-	git tag -a $$(./tools/svu.sh patch) -m "Release $$(./tools/svu.sh patch)"
-	git push origin $$(./tools/svu.sh patch)
+	@VERSION=$$(./tools/svu.sh patch) && \
+	echo "Current version: $$(./tools/svu.sh current)" && \
+	echo "Next version:    $$VERSION" && \
+	git tag -a $$VERSION -m "Release $$VERSION" && \
+	git push origin $$VERSION
 
 .PHONY: release-minor # Tag and push a minor release.
 release-minor:
-	@echo "Current version: $$(./tools/svu.sh current)"
-	@echo "Next version:    $$(./tools/svu.sh minor)"
-	git tag -a $$(./tools/svu.sh minor) -m "Release $$(./tools/svu.sh minor)"
-	git push origin $$(./tools/svu.sh minor)
+	@VERSION=$$(./tools/svu.sh minor) && \
+	echo "Current version: $$(./tools/svu.sh current)" && \
+	echo "Next version:    $$VERSION" && \
+	git tag -a $$VERSION -m "Release $$VERSION" && \
+	git push origin $$VERSION
 
 .PHONY: release-major # Tag and push a major release.
 release-major:
-	@echo "Current version: $$(./tools/svu.sh current)"
-	@echo "Next version:    $$(./tools/svu.sh major)"
-	git tag -a $$(./tools/svu.sh major) -m "Release $$(./tools/svu.sh major)"
-	git push origin $$(./tools/svu.sh major)
+	@VERSION=$$(./tools/svu.sh major) && \
+	echo "Current version: $$(./tools/svu.sh current)" && \
+	echo "Next version:    $$VERSION" && \
+	git tag -a $$VERSION -m "Release $$VERSION" && \
+	git push origin $$VERSION
 
 .PHONY: version # Show current and next version.
 version:
