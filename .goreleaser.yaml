@@ -56,20 +56,21 @@ signs:
   - cmd: cosign
     artifacts: checksum
     output: true
+    signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
       - --yes
-      - --output-certificate=${certificate}
-      - --output-signature=${signature}
+      - --bundle=${signature}
       - ${artifact}
 
 docker_signs:
   - cmd: cosign
-    artifacts: manifests
+    artifacts: images
     output: true
     args:
       - sign
       - --yes
+      - --bundle=${artifact}.sigstore.json
       - ${artifact}
 
 changelog:
@@ -127,76 +128,46 @@ archives:
       - LICENSE
       - completions/*
 
-brews:
-  - repository:
-      owner: DataliftHQ
-      name: homebrew-tap
-    directory: Formula
-    goarm: "7"
+homebrew_casks:
+  - name: admiral
+    binaries:
+      - admiral
+    completions:
+      bash: completions/admiral.bash
+      zsh: completions/admiral.zsh
+      fish: completions/admiral.fish
     homepage: https://admiral.io/
     description: Admiral CLI - Platform Orchestrator
-    license: MPL-2.0
+    dependencies:
+      - formula: git
     commit_author:
       name: admiral-ci
       email: support@admiral.io
-    test: |
-      system "#{bin}/admiral --version"
-    dependencies:
-      - name: go
-        type: optional
-      - name: git
-    install: |-
-      bin.install "admiral"
-      bash_completion.install "completions/admiral.bash" => "admiral"
-      zsh_completion.install "completions/admiral.zsh" => "_admiral"
-      fish_completion.install "completions/admiral.fish"
+    repository:
+      owner: DataliftHQ
+      name: homebrew-tap
 
-dockers:
-  - image_templates:
-      - "ghcr.io/datalifthq/admiral:{{ .Tag }}-amd64"
+dockers_v2:
+  - images:
+      - "ghcr.io/datalifthq/admiral"
+    tags:
+      - "{{ .Tag }}"
+      - latest
     dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - '--label=io.artifacthub.package.maintainers=[{"name":"Admiral","email":"support@admiral.io"}]'
-      - "--label=io.artifacthub.package.license=MPL-2.0"
-      - "--label=org.opencontainers.image.description=Admiral - Platform Orchestrator CLI"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--platform=linux/amd64"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "io.artifacthub.package.maintainers": '[{"name":"Admiral","email":"support@admiral.io"}]'
+      "io.artifacthub.package.license": "MPL-2.0"
+      "org.opencontainers.image.description": "Admiral - Platform Orchestrator CLI"
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
     extra_files:
       - scripts/entrypoint.sh
-  - image_templates:
-      - "ghcr.io/datalifthq/admiral:{{ .Tag }}-arm64"
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - '--label=io.artifacthub.package.maintainers=[{"name":"Admiral","email":"support@admiral.io"}]'
-      - "--label=io.artifacthub.package.license=MPL-2.0"
-      - "--label=org.opencontainers.image.description=Admiral - Platform Orchestrator CLI"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--platform=linux/arm64"
-    goarch: arm64
-    extra_files:
-      - scripts/entrypoint.sh
-
-docker_manifests:
-  - name_template: "ghcr.io/datalifthq/admiral:{{ .Tag }}"
-    image_templates:
-      - "ghcr.io/datalifthq/admiral:{{ .Tag }}-amd64"
-      - "ghcr.io/datalifthq/admiral:{{ .Tag }}-arm64"
-  - name_template: "ghcr.io/datalifthq/admiral:latest"
-    image_templates:
-      - "ghcr.io/datalifthq/admiral:{{ .Tag }}-amd64"
-      - "ghcr.io/datalifthq/admiral:{{ .Tag }}-arm64"
 
 nfpms:
   - id: admiral
