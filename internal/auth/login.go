@@ -167,7 +167,7 @@ func Login(ctx context.Context, opts LoginOptions) error {
 	select {
 	case <-ctx.Done():
 		gracefulShutdown(server)
-		return fmt.Errorf("login cancelled: %w", ctx.Err())
+		return fmt.Errorf("login canceled: %w", ctx.Err())
 	case res = <-resultCh:
 	}
 
