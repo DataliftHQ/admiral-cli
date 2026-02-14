@@ -219,8 +219,7 @@ scoops:
     directory: bucket
     homepage: https://admiral.io
     description: |
-      Admiral - Platform Orchestrator CLI for managing clusters, runners,
-      and service accounts.
+      Admiral - Platform Orchestrator CLI for managing clusters, runners, and service accounts.
     license: MPL-2.0
     commit_author:
       name: admiral-ci
