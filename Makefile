@@ -54,6 +54,41 @@ verify:
 	go mod tidy
 	@git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum is not tidy" && exit 1)
 
+.PHONY: release # Tag and push the next version (auto-detected from commits).
+release:
+	@echo "Current version: $$(./tools/svu.sh current)"
+	@echo "Next version:    $$(./tools/svu.sh next)"
+	@echo ""
+	@read -p "Proceed? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	git tag -a $$(./tools/svu.sh next) -m "Release $$(./tools/svu.sh next)"
+	git push origin $$(./tools/svu.sh next)
+
+.PHONY: release-patch # Tag and push a patch release.
+release-patch:
+	@echo "Current version: $$(./tools/svu.sh current)"
+	@echo "Next version:    $$(./tools/svu.sh patch)"
+	git tag -a $$(./tools/svu.sh patch) -m "Release $$(./tools/svu.sh patch)"
+	git push origin $$(./tools/svu.sh patch)
+
+.PHONY: release-minor # Tag and push a minor release.
+release-minor:
+	@echo "Current version: $$(./tools/svu.sh current)"
+	@echo "Next version:    $$(./tools/svu.sh minor)"
+	git tag -a $$(./tools/svu.sh minor) -m "Release $$(./tools/svu.sh minor)"
+	git push origin $$(./tools/svu.sh minor)
+
+.PHONY: release-major # Tag and push a major release.
+release-major:
+	@echo "Current version: $$(./tools/svu.sh current)"
+	@echo "Next version:    $$(./tools/svu.sh major)"
+	git tag -a $$(./tools/svu.sh major) -m "Release $$(./tools/svu.sh major)"
+	git push origin $$(./tools/svu.sh major)
+
+.PHONY: version # Show current and next version.
+version:
+	@echo "Current: $$(./tools/svu.sh current)"
+	@echo "Next:    $$(./tools/svu.sh next)"
+
 .PHONY: deps # Download dependencies.
 deps:
 	go mod download
