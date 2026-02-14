@@ -44,7 +44,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate }} -X main.builtBy=admiral
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate }} -X main.builtBy=DataliftHQ
 
 universal_binaries:
   - replace: false
@@ -127,24 +127,26 @@ archives:
       - LICENSE
       - completions/*
 
-homebrew_casks:
-  - name: admiral
-    binaries:
-      - admiral
-    completions:
-      bash: completions/admiral.bash
-      zsh: completions/admiral.zsh
-      fish: completions/admiral.fish
+brews:
+  - repository:
+      owner: DataliftHQ
+      name: homebrew-tap
+    directory: Formula
     homepage: https://admiral.io/
     description: Admiral CLI - Platform Orchestrator
+    license: MPL-2.0
     dependencies:
-      - formula: git
+      - name: git
     commit_author:
       name: admiral-ci
       email: support@admiral.io
-    repository:
-      owner: DataliftHQ
-      name: homebrew-tap
+    test: |
+      system "#{bin}/admiral --version"
+    install: |-
+      bin.install "admiral"
+      bash_completion.install "completions/admiral.bash" => "admiral"
+      zsh_completion.install "completions/admiral.zsh" => "_admiral"
+      fish_completion.install "completions/admiral.fish"
 
 dockers_v2:
   - images:
