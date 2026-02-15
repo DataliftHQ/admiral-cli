@@ -3,6 +3,7 @@ package factory
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"go.admiral.io/cli/internal/credentials"
 	"go.admiral.io/cli/internal/output"
@@ -14,6 +15,7 @@ type Options struct {
 	ServerAddr   string
 	Insecure     bool
 	PlainText    bool
+	Verbose      bool
 	ConfigDir    string
 	OutputFormat output.Format
 
@@ -25,17 +27,22 @@ type Options struct {
 
 // CreateClient creates a new AdmiralClient using the SDK.
 func CreateClient(_ context.Context, opts *Options) (client.AdmiralClient, error) {
-	token, err := credentials.ResolveToken(opts.ConfigDir)
+	result, err := credentials.ResolveToken(opts.ConfigDir)
 	if err != nil {
 		return nil, err
 	}
 
 	cfg := client.Config{
-		HostPort:  opts.ServerAddr,
-		AuthToken: token,
+		HostPort:   opts.ServerAddr,
+		AuthToken:  result.Token,
+		AuthScheme: result.AuthScheme,
 		ConnectionOptions: client.ConnectionOptions{
 			Insecure: opts.Insecure || opts.PlainText,
 		},
+	}
+
+	if opts.Verbose {
+		cfg.Logger = client.NewSlogLogger(slog.Default())
 	}
 
 	c, err := client.New(context.Background(), cfg)

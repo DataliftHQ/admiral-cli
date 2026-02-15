@@ -27,6 +27,7 @@ func NewAuthCmd(opts *factory.Options) *AuthCmd {
 		NewLoginCmd(opts),
 		NewLogoutCmd(opts),
 		newStatusCmd(opts),
+		newWhoamiCmd(opts),
 	)
 
 	root.Cmd = cmd

@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -39,9 +38,9 @@ func newListCmd(opts *factory.Options) *cobra.Command {
 			p := output.NewPrinter(opts.OutputFormat)
 			if err := p.PrintResource(resp, func(w *tabwriter.Writer) {
 				if opts.OutputFormat == output.FormatWide {
-					_, _ = fmt.Fprintln(w, "ID\tNAME\tHEALTH\tAGE\tCLUSTER-UID\tLABELS\tCREATED\tUPDATED")
+					output.Writeln(w, "ID\tNAME\tHEALTH\tAGE\tCLUSTER-UID\tLABELS\tCREATED\tUPDATED")
 					for _, cl := range resp.Clusters {
-						_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+						output.Writef(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 							cl.Id,
 							cl.DisplayName,
 							output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_"),
@@ -53,9 +52,9 @@ func newListCmd(opts *factory.Options) *cobra.Command {
 						)
 					}
 				} else {
-					_, _ = fmt.Fprintln(w, "ID\tNAME\tHEALTH\tAGE")
+					output.Writeln(w, "ID\tNAME\tHEALTH\tAGE")
 					for _, cl := range resp.Clusters {
-						_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+						output.Writef(w, "%s\t%s\t%s\t%s\n",
 							cl.Id,
 							cl.DisplayName,
 							output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_"),
@@ -68,7 +67,7 @@ func newListCmd(opts *factory.Options) *cobra.Command {
 			}
 
 			if resp.NextPageToken != "" {
-				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "\nNext page token: %s\n", resp.NextPageToken)
+				output.Writef(cmd.ErrOrStderr(), "\nNext page token: %s\n", resp.NextPageToken)
 			}
 
 			return nil

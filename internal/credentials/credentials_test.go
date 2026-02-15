@@ -7,7 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+
+	"go.admiral.io/sdk/client"
 )
 
 func TestSaveAndGetToken(t *testing.T) {
@@ -103,12 +106,9 @@ func TestResolveToken_EnvVar(t *testing.T) {
 	t.Setenv(EnvToken, "env-token-789")
 
 	got, err := ResolveToken(t.TempDir())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != "env-token-789" {
-		t.Fatalf("want %q, got %q", "env-token-789", got)
-	}
+	require.NoError(t, err)
+	require.Equal(t, "env-token-789", got.Token)
+	require.Equal(t, client.AuthSchemeToken, got.AuthScheme)
 }
 
 func TestResolveToken_EnvVarTakesPrecedence(t *testing.T) {
@@ -117,19 +117,14 @@ func TestResolveToken_EnvVarTakesPrecedence(t *testing.T) {
 		AccessToken: "file-token",
 		Expiry:      time.Now().Add(1 * time.Hour),
 	}
-	if err := SaveToken(dir, token, "cid", "url"); err != nil {
-		t.Fatalf("SaveToken: %v", err)
-	}
+	require.NoError(t, SaveToken(dir, token, "cid", "url"))
 
 	t.Setenv(EnvToken, "env-token")
 
 	got, err := ResolveToken(dir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != "env-token" {
-		t.Fatalf("env var should take precedence, got %q", got)
-	}
+	require.NoError(t, err)
+	require.Equal(t, "env-token", got.Token)
+	require.Equal(t, client.AuthSchemeToken, got.AuthScheme)
 }
 
 func TestResolveToken_ValidToken(t *testing.T) {
@@ -140,17 +135,12 @@ func TestResolveToken_ValidToken(t *testing.T) {
 		AccessToken: "valid-token",
 		Expiry:      time.Now().Add(1 * time.Hour),
 	}
-	if err := SaveToken(dir, token, "cid", "url"); err != nil {
-		t.Fatalf("SaveToken: %v", err)
-	}
+	require.NoError(t, SaveToken(dir, token, "cid", "url"))
 
 	got, err := ResolveToken(dir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != "valid-token" {
-		t.Fatalf("want %q, got %q", "valid-token", got)
-	}
+	require.NoError(t, err)
+	require.Equal(t, "valid-token", got.Token)
+	require.Equal(t, client.AuthSchemeBearer, got.AuthScheme)
 }
 
 func TestResolveToken_NoExpiry(t *testing.T) {
@@ -159,17 +149,12 @@ func TestResolveToken_NoExpiry(t *testing.T) {
 
 	// Zero expiry should be treated as valid (e.g. long-lived tokens).
 	token := &oauth2.Token{AccessToken: "no-expiry-token"}
-	if err := SaveToken(dir, token, "cid", "url"); err != nil {
-		t.Fatalf("SaveToken: %v", err)
-	}
+	require.NoError(t, SaveToken(dir, token, "cid", "url"))
 
 	got, err := ResolveToken(dir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != "no-expiry-token" {
-		t.Fatalf("want %q, got %q", "no-expiry-token", got)
-	}
+	require.NoError(t, err)
+	require.Equal(t, "no-expiry-token", got.Token)
+	require.Equal(t, client.AuthSchemeBearer, got.AuthScheme)
 }
 
 func TestResolveToken_NotLoggedIn(t *testing.T) {

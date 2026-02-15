@@ -29,22 +29,13 @@ builds:
       - darwin
       - windows
     goarch:
-      - "386"
       - amd64
-      - arm
       - arm64
-      - ppc64
-      - s390x
-    goarm:
-      - "7"
-    ignore:
-      - goos: windows
-        goarch: arm
     mod_timestamp: "{{ .CommitTimestamp }}"
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate }} -X main.builtBy=DataliftHQ
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate }} -X main.builtBy=Datalift
 
 universal_binaries:
   - replace: false
@@ -218,11 +209,10 @@ scoops:
       name: scoop-bucket
     directory: bucket
     homepage: https://admiral.io
-    description: |
-      Admiral - Platform Orchestrator CLI for managing clusters, runners, and service accounts.
+    description: Admiral - Platform Orchestrator CLI for managing clusters, runners, and service accounts.
     license: MPL-2.0
     commit_author:
-      name: admiral-ci
+      name: datalift-ci
       email: support@admiral.io
 
 sboms:

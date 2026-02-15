@@ -2,12 +2,12 @@ package auth
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
 	internalauth "go.admiral.io/cli/internal/auth"
 	"go.admiral.io/cli/internal/factory"
+	"go.admiral.io/cli/internal/output"
 )
 
 // NewLogoutCmd creates the logout command.
@@ -26,7 +26,7 @@ func NewLogoutCmd(opts *factory.Options) *cobra.Command {
 				return err
 			}
 
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Successfully logged out.")
+			output.Writeln(cmd.OutOrStdout(), "Successfully logged out.")
 			return nil
 		},
 	}

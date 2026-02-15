@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -38,8 +37,8 @@ func newTokenCreateCmd(opts *factory.Options) *cobra.Command {
 			p := output.NewPrinter(opts.OutputFormat)
 			if err := p.PrintResource(resp, func(w *tabwriter.Writer) {
 				t := resp.AccessToken
-				_, _ = fmt.Fprintln(w, "ID\tNAME\tPREFIX\tSTATUS\tCREATED")
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				output.Writeln(w, "ID\tNAME\tPREFIX\tSTATUS\tCREATED")
+				output.Writef(w, "%s\t%s\t%s\t%s\t%s\n",
 					t.Id,
 					t.DisplayName,
 					t.TokenPrefix,

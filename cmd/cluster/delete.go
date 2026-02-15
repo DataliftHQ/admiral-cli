@@ -40,7 +40,7 @@ func newDeleteCmd(opts *factory.Options) *cobra.Command {
 
 			p := output.NewPrinter(opts.OutputFormat)
 			return p.PrintResource(resp, func(w *tabwriter.Writer) {
-				_, _ = fmt.Fprintf(w, "Cluster %s deleted\n", id)
+				output.Writef(w, "Cluster %s deleted\n", id)
 			})
 		},
 	}

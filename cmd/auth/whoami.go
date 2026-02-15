@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -11,10 +10,10 @@ import (
 	userv1 "go.admiral.io/sdk/proto/user/v1"
 )
 
-func newStatusCmd(opts *factory.Options) *cobra.Command {
+func newWhoamiCmd(opts *factory.Options) *cobra.Command {
 	return &cobra.Command{
-		Use:   "status",
-		Short: "Show authentication status",
+		Use:   "whoami",
+		Short: "Show current user information",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := factory.CreateClient(cmd.Context(), opts)
@@ -28,40 +27,22 @@ func newStatusCmd(opts *factory.Options) *cobra.Command {
 				return fmt.Errorf("failed to get user info: %w", err)
 			}
 
-			tokenInfo, err := c.GetTokenInfo()
-			if err != nil {
-				return fmt.Errorf("failed to get token info: %w", err)
-			}
-
 			p := output.NewPrinter(opts.OutputFormat)
 
 			sections := []output.Section{
 				{
 					Details: []output.Detail{
 						{Key: "Email", Value: resp.GetEmail()},
-						{Key: "Server", Value: opts.ServerAddr},
-						{Key: "Token Expires In", Value: formatExpiresIn(tokenInfo.ExpiresIn())},
+						{Key: "Display Name", Value: resp.GetDisplayName()},
+						{Key: "Given Name", Value: resp.GetGivenName()},
+						{Key: "Family Name", Value: resp.GetFamilyName()},
+						{Key: "ID", Value: resp.GetId()},
+						{Key: "Tenant", Value: resp.GetTenantId()},
 					},
 				},
 			}
 
-			return p.PrintDetail(resp, sections)
+			return p.PrintDetail(nil, sections)
 		},
 	}
-}
-
-func formatExpiresIn(d time.Duration) string {
-	if d <= 0 {
-		return "expired"
-	}
-	if d < time.Minute {
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%.1fh", d.Hours())
-	}
-	return fmt.Sprintf("%.1fd", d.Hours()/24)
 }

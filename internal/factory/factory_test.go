@@ -60,6 +60,23 @@ func TestCreateClient_InsecureFlag(t *testing.T) {
 	defer c.Close()
 }
 
+func TestCreateClient_WithVerbose(t *testing.T) {
+	t.Setenv(credentials.EnvToken, "test-token")
+
+	opts := &Options{
+		ServerAddr: "localhost:9999",
+		PlainText:  true,
+		Verbose:    true,
+		ConfigDir:  t.TempDir(),
+	}
+
+	c, err := CreateClient(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer c.Close()
+}
+
 func TestOptions_Defaults(t *testing.T) {
 	opts := &Options{}
 
@@ -71,6 +88,9 @@ func TestOptions_Defaults(t *testing.T) {
 	}
 	if opts.PlainText {
 		t.Fatal("expected PlainText to be false")
+	}
+	if opts.Verbose {
+		t.Fatal("expected Verbose to be false")
 	}
 	if opts.OutputFormat != "" {
 		t.Fatalf("expected empty OutputFormat, got %q", opts.OutputFormat)

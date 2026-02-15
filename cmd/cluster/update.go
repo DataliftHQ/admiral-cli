@@ -63,8 +63,8 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 			p := output.NewPrinter(opts.OutputFormat)
 			return p.PrintResource(resp, func(w *tabwriter.Writer) {
 				cl := resp.Cluster
-				_, _ = fmt.Fprintln(w, "ID\tNAME\tHEALTH\tAGE")
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+				output.Writeln(w, "ID\tNAME\tHEALTH\tAGE")
+				output.Writef(w, "%s\t%s\t%s\t%s\n",
 					cl.Id,
 					cl.DisplayName,
 					output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_"),

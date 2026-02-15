@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -11,13 +10,8 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/cobra"
 
-	agentcmd "go.admiral.io/cli/cmd/agent"
 	authcmd "go.admiral.io/cli/cmd/auth"
 	clustercmd "go.admiral.io/cli/cmd/cluster"
-	runnercmd "go.admiral.io/cli/cmd/runner"
-	sacmd "go.admiral.io/cli/cmd/serviceaccount"
-	tokencmd "go.admiral.io/cli/cmd/token"
-	whoamicmd "go.admiral.io/cli/cmd/whoami"
 	"go.admiral.io/cli/internal/config"
 	"go.admiral.io/cli/internal/credentials"
 	"go.admiral.io/cli/internal/factory"
@@ -38,7 +32,7 @@ func (cmd *rootCmd) Execute(args []string) {
 		if errors.As(err, &eerr) {
 			code = eerr.code
 		}
-		_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		output.Writef(os.Stderr, "Error: %s\n", err)
 		cmd.exit(code)
 	}
 }
@@ -79,6 +73,7 @@ func newRootCmd(ver version.Version, exit func(int)) *rootCmd {
 			}
 			factoryOpts.OutputFormat = f
 			factoryOpts.ConfigDir = root.configPath
+			factoryOpts.Verbose = root.verbose
 
 			return nil
 		},
@@ -137,19 +132,9 @@ func newRootCmd(ver version.Version, exit func(int)) *rootCmd {
 	authCmd := authcmd.NewAuthCmd(&factoryOpts)
 	cmd.AddCommand(authCmd.Cmd)
 
-	// Top-level login/logout shortcuts
-	loginCmd := authcmd.NewLoginCmd(&factoryOpts)
-	logoutCmd := authcmd.NewLogoutCmd(&factoryOpts)
-	cmd.AddCommand(loginCmd, logoutCmd)
-
 	// Resource commands
 	cmd.AddCommand(
 		clustercmd.NewClusterCmd(&factoryOpts).Cmd,
-		runnercmd.NewRunnerCmd(&factoryOpts).Cmd,
-		sacmd.NewServiceAccountCmd(&factoryOpts).Cmd,
-		agentcmd.NewAgentCmd(&factoryOpts).Cmd,
-		tokencmd.NewTokenCmd(&factoryOpts).Cmd,
-		whoamicmd.NewWhoamiCmd(&factoryOpts),
 	)
 
 	// Utility commands

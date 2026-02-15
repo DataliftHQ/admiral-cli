@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
+
+	"go.admiral.io/sdk/client"
 )
 
 const (
@@ -35,39 +37,45 @@ type credentials struct {
 	TokenURL string `json:"token_url,omitempty"`
 }
 
+// TokenResult holds a resolved token and its auth scheme.
+type TokenResult struct {
+	Token      string
+	AuthScheme client.AuthScheme
+}
+
 // ResolveToken returns a valid access token from the environment variable or
 // credentials file. If the stored token is expired (or close to expiry) and a
 // refresh token is available, it transparently refreshes and persists the new token.
-func ResolveToken(configDir string) (string, error) {
+func ResolveToken(configDir string) (*TokenResult, error) {
 	if t := os.Getenv(EnvToken); t != "" {
-		return t, nil
+		return &TokenResult{Token: t, AuthScheme: client.AuthSchemeToken}, nil
 	}
 
 	creds, err := readCredentials(configDir)
 	if err != nil {
-		return "", fmt.Errorf("not logged in: run 'admiral login' first")
+		return nil, fmt.Errorf("not logged in: run 'admiral auth login' first")
 	}
 
 	if creds.AccessToken == "" {
-		return "", fmt.Errorf("not logged in: run 'admiral login' first")
+		return nil, fmt.Errorf("not logged in: run 'admiral auth login' first")
 	}
 
 	// If the token is still valid, return it directly.
 	if creds.Expiry.IsZero() || time.Until(creds.Expiry) > refreshWindow {
-		return creds.AccessToken, nil
+		return &TokenResult{Token: creds.AccessToken, AuthScheme: client.AuthSchemeBearer}, nil
 	}
 
 	// Token is expired or about to expire — try to refresh.
 	if creds.RefreshToken == "" || creds.TokenURL == "" {
-		return "", fmt.Errorf("session expired: run 'admiral login' to re-authenticate")
+		return nil, fmt.Errorf("session expired: run 'admiral auth login' to re-authenticate")
 	}
 
 	refreshed, err := refreshCredentials(configDir, creds)
 	if err != nil {
-		return "", fmt.Errorf("session expired (refresh failed): run 'admiral login' to re-authenticate")
+		return nil, fmt.Errorf("session expired (refresh failed): run 'admiral auth login' to re-authenticate")
 	}
 
-	return refreshed.AccessToken, nil
+	return &TokenResult{Token: refreshed.AccessToken, AuthScheme: client.AuthSchemeBearer}, nil
 }
 
 // SaveToken writes an OAuth2 token and refresh metadata to the credentials file.
@@ -175,11 +183,17 @@ func readCredentials(configDir string) (*credentials, error) {
 
 // refreshCredentials uses the refresh token to obtain a new access token and persists it.
 func refreshCredentials(configDir string, creds *credentials) (*credentials, error) {
+	// Set Expiry to a past time so the oauth2 library considers the token
+	// expired and actually performs the refresh. Without this, oauth2's
+	// internal expiryDelta (10s) causes it to return the existing token
+	// as-is when it still has >10s remaining — defeating our proactive
+	// refresh window. Note: a zero Expiry means "never expires" in oauth2,
+	// so we must use an explicitly past time.
 	token := &oauth2.Token{
 		AccessToken:  creds.AccessToken,
 		TokenType:    creds.TokenType,
 		RefreshToken: creds.RefreshToken,
-		Expiry:       creds.Expiry,
+		Expiry:       time.Now().Add(-time.Minute),
 	}
 
 	cfg := &oauth2.Config{

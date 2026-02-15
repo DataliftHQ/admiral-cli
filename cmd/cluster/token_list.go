@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -41,9 +40,9 @@ func newTokenListCmd(opts *factory.Options) *cobra.Command {
 
 			p := output.NewPrinter(opts.OutputFormat)
 			if err := p.PrintResource(resp, func(w *tabwriter.Writer) {
-				_, _ = fmt.Fprintln(w, "ID\tNAME\tPREFIX\tSTATUS\tCREATED")
+				output.Writeln(w, "ID\tNAME\tPREFIX\tSTATUS\tCREATED")
 				for _, t := range resp.AccessTokens {
-					_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+					output.Writef(w, "%s\t%s\t%s\t%s\t%s\n",
 						t.Id,
 						t.DisplayName,
 						t.TokenPrefix,
@@ -56,7 +55,7 @@ func newTokenListCmd(opts *factory.Options) *cobra.Command {
 			}
 
 			if resp.NextPageToken != "" {
-				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "\nNext page token: %s\n", resp.NextPageToken)
+				output.Writef(cmd.ErrOrStderr(), "\nNext page token: %s\n", resp.NextPageToken)
 			}
 
 			return nil

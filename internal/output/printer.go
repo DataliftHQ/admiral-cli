@@ -13,6 +13,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Writef writes formatted output to w, swallowing the return values.
+func Writef(w io.Writer, format string, a ...any) {
+	_, _ = fmt.Fprintf(w, format, a...)
+}
+
+// Writeln writes a line to w, swallowing the return values.
+func Writeln(w io.Writer, a ...any) {
+	_, _ = fmt.Fprintln(w, a...)
+}
+
 // Printer handles output formatting for CLI commands.
 type Printer struct {
 	Format Format
@@ -87,10 +97,10 @@ func (p *Printer) printDetail(sections []Section) error {
 
 	for i, section := range sections {
 		if i > 0 {
-			_, _ = fmt.Fprintln(w)
+			Writeln(w)
 		}
 		if section.Name != "" {
-			_, _ = fmt.Fprintf(w, "%s:\n", section.Name)
+			Writef(w, "%s:\n", section.Name)
 		}
 
 		prefix := ""
@@ -99,7 +109,7 @@ func (p *Printer) printDetail(sections []Section) error {
 		}
 
 		for _, d := range section.Details {
-			_, _ = fmt.Fprintf(w, "%s%s:\t%s\n", prefix, d.Key, d.Value)
+			Writef(w, "%s%s:\t%s\n", prefix, d.Key, d.Value)
 		}
 	}
 
@@ -108,9 +118,9 @@ func (p *Printer) printDetail(sections []Section) error {
 
 // PrintToken prints a one-time token with a warning that it won't be shown again.
 func PrintToken(stderr io.Writer, token string) {
-	_, _ = fmt.Fprintln(stderr)
-	_, _ = fmt.Fprintln(stderr, "WARNING: Save this token — it will not be shown again.")
-	_, _ = fmt.Fprintf(stderr, "Token: %s\n", token)
+	Writeln(stderr)
+	Writeln(stderr, "WARNING: Save this token — it will not be shown again.")
+	Writef(stderr, "Token: %s\n", token)
 }
 
 func (p *Printer) printProtoJSON(msg proto.Message) error {

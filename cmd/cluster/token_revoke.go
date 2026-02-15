@@ -42,7 +42,7 @@ func newTokenRevokeCmd(opts *factory.Options) *cobra.Command {
 
 			p := output.NewPrinter(opts.OutputFormat)
 			return p.PrintResource(resp, func(w *tabwriter.Writer) {
-				_, _ = fmt.Fprintf(w, "Token %s revoked\n", tokenID)
+				output.Writef(w, "Token %s revoked\n", tokenID)
 			})
 		},
 	}
