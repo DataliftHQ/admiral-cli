@@ -12,6 +12,7 @@ import (
 
 	authcmd "go.admiral.io/cli/cmd/auth"
 	clustercmd "go.admiral.io/cli/cmd/cluster"
+	variablecmd "go.admiral.io/cli/cmd/variable"
 	"go.admiral.io/cli/internal/config"
 	"go.admiral.io/cli/internal/credentials"
 	"go.admiral.io/cli/internal/factory"
@@ -135,6 +136,7 @@ func newRootCmd(ver version.Version, exit func(int)) *rootCmd {
 	// Resource commands
 	cmd.AddCommand(
 		clustercmd.NewClusterCmd(&factoryOpts).Cmd,
+		variablecmd.NewVariableCmd(&factoryOpts).Cmd,
 	)
 
 	// Utility commands
