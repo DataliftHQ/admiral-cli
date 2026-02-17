@@ -10,8 +10,10 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/cobra"
 
+	appcmd "go.admiral.io/cli/cmd/app"
 	authcmd "go.admiral.io/cli/cmd/auth"
 	clustercmd "go.admiral.io/cli/cmd/cluster"
+	envcmd "go.admiral.io/cli/cmd/env"
 	variablecmd "go.admiral.io/cli/cmd/variable"
 	"go.admiral.io/cli/internal/config"
 	"go.admiral.io/cli/internal/credentials"
@@ -135,7 +137,9 @@ func newRootCmd(ver version.Version, exit func(int)) *rootCmd {
 
 	// Resource commands
 	cmd.AddCommand(
+		appcmd.NewAppCmd(&factoryOpts).Cmd,
 		clustercmd.NewClusterCmd(&factoryOpts).Cmd,
+		envcmd.NewEnvCmd(&factoryOpts).Cmd,
 		variablecmd.NewVariableCmd(&factoryOpts).Cmd,
 	)
 
