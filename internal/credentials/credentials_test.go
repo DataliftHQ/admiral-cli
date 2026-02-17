@@ -376,6 +376,34 @@ func TestWriteCredentials_JSONFormat(t *testing.T) {
 	}
 }
 
+func TestCheckFilePermissions_SecureFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, credentialsFile)
+	require.NoError(t, os.WriteFile(path, []byte(`{}`), 0600))
+
+	// Should not panic or error — just a no-op for secure files.
+	checkFilePermissions(path)
+}
+
+func TestCheckFilePermissions_InsecureFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, credentialsFile)
+	require.NoError(t, os.WriteFile(path, []byte(`{}`), 0644))
+
+	// Should not panic — just logs a warning.
+	checkFilePermissions(path)
+
+	// Verify the file is indeed too open.
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.NotEqual(t, os.FileMode(0600), info.Mode().Perm())
+}
+
+func TestCheckFilePermissions_MissingFile(t *testing.T) {
+	// Should not panic when file doesn't exist.
+	checkFilePermissions(filepath.Join(t.TempDir(), "nonexistent"))
+}
+
 func containsStr(s, substr string) bool {
 	return len(s) >= len(substr) && searchStr(s, substr)
 }

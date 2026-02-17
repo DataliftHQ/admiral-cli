@@ -57,7 +57,7 @@ func TestRootCmd_HasExpectedSubcommands(t *testing.T) {
 	root := newRootCmd(testversion, mem.Exit).cmd
 
 	expected := []string{
-		"auth", "cluster", "version", "completion",
+		"auth", "cluster", "version", "completion", "whoami", "use",
 	}
 
 	names := make([]string, 0, len(root.Commands()))
@@ -77,7 +77,7 @@ func TestRootCmd_AuthSubcommands(t *testing.T) {
 	auth, _, err := root.Find([]string{"auth"})
 	require.NoError(t, err)
 
-	expected := []string{"login", "logout", "status", "whoami"}
+	expected := []string{"login", "logout"}
 	names := subcmdNames(auth)
 	for _, want := range expected {
 		require.Contains(t, names, want, "auth missing subcommand %q", want)
@@ -470,6 +470,101 @@ func TestRootCmd_VerboseFlag(t *testing.T) {
 	root.SetArgs([]string{"-v", "version"})
 
 	require.NoError(t, root.Execute())
+}
+
+// ---------------------------------------------------------------------------
+// Use command
+// ---------------------------------------------------------------------------
+
+func TestUseCmd_SetApp(t *testing.T) {
+	dir := t.TempDir()
+	var buf bytes.Buffer
+	mem := &exitMemento{}
+	root := newRootCmd(testversion, mem.Exit).cmd
+	root.SetOut(&buf)
+	root.SetArgs([]string{"--config-dir", dir, "use", "my-app"})
+
+	require.NoError(t, root.Execute())
+	require.Contains(t, buf.String(), "my-app")
+}
+
+func TestUseCmd_ShowContext(t *testing.T) {
+	dir := t.TempDir()
+	mem := &exitMemento{}
+
+	// Set context first.
+	root := newRootCmd(testversion, mem.Exit).cmd
+	root.SetArgs([]string{"--config-dir", dir, "use", "my-app"})
+	require.NoError(t, root.Execute())
+
+	// Show context.
+	var buf bytes.Buffer
+	root2 := newRootCmd(testversion, mem.Exit).cmd
+	root2.SetOut(&buf)
+	root2.SetArgs([]string{"--config-dir", dir, "use"})
+	require.NoError(t, root2.Execute())
+
+	require.Contains(t, buf.String(), "my-app")
+}
+
+func TestUseCmd_ShowNoContext(t *testing.T) {
+	dir := t.TempDir()
+	var buf bytes.Buffer
+	mem := &exitMemento{}
+	root := newRootCmd(testversion, mem.Exit).cmd
+	root.SetOut(&buf)
+	root.SetArgs([]string{"--config-dir", dir, "use"})
+
+	require.NoError(t, root.Execute())
+	require.Contains(t, buf.String(), "No active app context")
+}
+
+func TestUseCmd_Clear(t *testing.T) {
+	dir := t.TempDir()
+	mem := &exitMemento{}
+
+	// Set context first.
+	root := newRootCmd(testversion, mem.Exit).cmd
+	root.SetArgs([]string{"--config-dir", dir, "use", "my-app"})
+	require.NoError(t, root.Execute())
+
+	// Clear it.
+	var buf bytes.Buffer
+	root2 := newRootCmd(testversion, mem.Exit).cmd
+	root2.SetOut(&buf)
+	root2.SetArgs([]string{"--config-dir", dir, "use", "--clear"})
+	require.NoError(t, root2.Execute())
+	require.Contains(t, buf.String(), "Context cleared")
+
+	// Verify it's gone.
+	var buf2 bytes.Buffer
+	root3 := newRootCmd(testversion, mem.Exit).cmd
+	root3.SetOut(&buf2)
+	root3.SetArgs([]string{"--config-dir", dir, "use"})
+	require.NoError(t, root3.Execute())
+	require.Contains(t, buf2.String(), "No active app context")
+}
+
+func TestUseCmd_RejectsTooManyArgs(t *testing.T) {
+	mem := &exitMemento{}
+	root := newRootCmd(testversion, mem.Exit).cmd
+	root.SetArgs([]string{"use", "app1", "app2"})
+
+	err := root.Execute()
+	require.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// Whoami command
+// ---------------------------------------------------------------------------
+
+func TestWhoamiCmd_RejectsArgs(t *testing.T) {
+	mem := &exitMemento{}
+	root := newRootCmd(testversion, mem.Exit).cmd
+	root.SetArgs([]string{"whoami", "extra"})
+
+	err := root.Execute()
+	require.Error(t, err)
 }
 
 // ---------------------------------------------------------------------------

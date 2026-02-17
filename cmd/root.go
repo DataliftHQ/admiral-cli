@@ -139,8 +139,10 @@ func newRootCmd(ver version.Version, exit func(int)) *rootCmd {
 
 	// Utility commands
 	cmd.AddCommand(
-		newVersionCmd(ver),
 		newCompletionCmd(),
+		newUseCmd(&factoryOpts),
+		newVersionCmd(ver),
+		newWhoamiCmd(&factoryOpts),
 	)
 
 	root.cmd = cmd

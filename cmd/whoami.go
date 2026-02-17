@@ -1,20 +1,23 @@
-package auth
+package cmd
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"go.admiral.io/cli/internal/credentials"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
+	"go.admiral.io/cli/internal/properties"
 	userv1 "go.admiral.io/sdk/proto/user/v1"
 )
 
-func newStatusCmd(opts *factory.Options) *cobra.Command {
+func newWhoamiCmd(opts *factory.Options) *cobra.Command {
 	return &cobra.Command{
-		Use:   "status",
-		Short: "Show authentication status",
+		Use:   "whoami",
+		Short: "Show current user, organization, and session",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := factory.CreateClient(cmd.Context(), opts)
@@ -28,21 +31,39 @@ func newStatusCmd(opts *factory.Options) *cobra.Command {
 				return fmt.Errorf("failed to get user info: %w", err)
 			}
 
+			authType := "OAuth"
+			if os.Getenv(credentials.EnvToken) != "" {
+				authType = "Token (ADMIRAL_TOKEN)"
+			}
+
+			details := []output.Detail{
+				{Key: "Email", Value: resp.GetEmail()},
+				{Key: "Display Name", Value: resp.GetDisplayName()},
+				{Key: "ID", Value: resp.GetId()},
+				{Key: "Organization", Value: resp.GetTenantId()},
+				{Key: "Auth Type", Value: authType},
+				{Key: "Server", Value: opts.ServerAddr},
+			}
+
+			// Show token expiry if available.
 			tokenInfo, err := c.GetTokenInfo()
-			if err != nil {
-				return fmt.Errorf("failed to get token info: %w", err)
+			if err == nil {
+				details = append(details, output.Detail{
+					Key:   "Token Expires In",
+					Value: formatExpiresIn(tokenInfo.ExpiresIn()),
+				})
+			}
+
+			// Show active app context if set.
+			props, err := properties.Load(opts.ConfigDir)
+			if err == nil && props.App != "" {
+				details = append(details, output.Detail{Key: "Active App", Value: props.App})
 			}
 
 			p := output.NewPrinter(opts.OutputFormat)
 
 			sections := []output.Section{
-				{
-					Details: []output.Detail{
-						{Key: "Email", Value: resp.GetEmail()},
-						{Key: "Server", Value: opts.ServerAddr},
-						{Key: "Token Expires In", Value: formatExpiresIn(tokenInfo.ExpiresIn())},
-					},
-				},
+				{Details: details},
 			}
 
 			return p.PrintDetail(resp, sections)

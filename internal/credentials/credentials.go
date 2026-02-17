@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -168,6 +171,9 @@ func writeCredentials(configDir string, creds *credentials) error {
 
 func readCredentials(configDir string) (*credentials, error) {
 	path := filepath.Join(configDir, credentialsFile)
+
+	checkFilePermissions(path)
+
 	data, err := os.ReadFile(path) //nolint:gosec // path is constructed from configDir + constant filename
 	if err != nil {
 		return nil, err
@@ -179,6 +185,30 @@ func readCredentials(configDir string) (*credentials, error) {
 	}
 
 	return &creds, nil
+}
+
+// checkFilePermissions warns via slog if the credentials file has permissions
+// that are too open, similar to SSH's "UNPROTECTED PRIVATE KEY FILE" warning.
+// This is a best-effort check — errors are silently ignored.
+func checkFilePermissions(path string) {
+	if runtime.GOOS == "windows" {
+		return // Windows doesn't use POSIX file permissions
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return
+	}
+
+	perm := info.Mode().Perm()
+	if perm&(fs.FileMode(0077)) != 0 {
+		slog.Warn("credentials file has insecure permissions",
+			"path", path,
+			"mode", fmt.Sprintf("%04o", perm),
+			"expected", "0600",
+			"hint", fmt.Sprintf("run: chmod 600 %s", path),
+		)
+	}
 }
 
 // refreshCredentials uses the refresh token to obtain a new access token and persists it.
