@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
 	clusterv1 "go.admiral.io/sdk/proto/cluster/v1"
@@ -14,7 +15,7 @@ func newTokenGetCmd(opts *factory.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <cluster-id> <token-id>",
 		Short: "Get a cluster token by ID",
-		Args:  cobra.ExactArgs(2),
+		Args:  cmdutil.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterID := args[0]
 			tokenID := args[1]

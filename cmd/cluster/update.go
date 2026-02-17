@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
 	clusterv1 "go.admiral.io/sdk/proto/cluster/v1"
@@ -21,7 +22,7 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <cluster-id>",
 		Short: "Update a cluster",
-		Args:  cobra.ExactArgs(1),
+		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
 
@@ -33,8 +34,8 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 				paths = append(paths, "display_name")
 			}
 
-			if cmd.Flags().Changed("labels") {
-				labels, err := parseLabels(labelStrs)
+			if cmd.Flags().Changed("label") {
+				labels, err := cmdutil.ParseLabels(labelStrs)
 				if err != nil {
 					return err
 				}
@@ -43,7 +44,7 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 			}
 
 			if len(paths) == 0 {
-				return fmt.Errorf("at least one of --name or --labels must be specified")
+				return fmt.Errorf("at least one of --name or --label must be specified")
 			}
 
 			c, err := factory.CreateClient(cmd.Context(), opts)
@@ -75,7 +76,7 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&name, "name", "", "new display name for the cluster")
-	cmd.Flags().StringArrayVar(&labelStrs, "labels", nil, "labels in key=value format (repeatable)")
+	cmdutil.AddLabelFlag(cmd, &labelStrs, "set a label (key=value, can be repeated)")
 
 	return cmd
 }

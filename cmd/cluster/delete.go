@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
 	clusterv1 "go.admiral.io/sdk/proto/cluster/v1"
@@ -17,7 +18,7 @@ func newDeleteCmd(opts *factory.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <cluster-id>",
 		Short: "Delete a cluster",
-		Args:  cobra.ExactArgs(1),
+		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
 

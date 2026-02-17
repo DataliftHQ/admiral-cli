@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
 	clusterv1 "go.admiral.io/sdk/proto/cluster/v1"
@@ -17,11 +18,11 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create",
+		Use:   "create <cluster-id>",
 		Short: "Create a new cluster",
-		Args:  cobra.NoArgs,
+		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			labels, err := parseLabels(labelStrs)
+			labels, err := cmdutil.ParseLabels(labelStrs)
 			if err != nil {
 				return err
 			}
@@ -32,6 +33,7 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
+			// TODO: pass args[0] as ClusterId once the proto adds the field.
 			resp, err := c.Cluster().CreateCluster(cmd.Context(), &clusterv1.CreateClusterRequest{
 				DisplayName: name,
 				Labels:      labels,
@@ -62,9 +64,8 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&name, "name", "", "display name for the cluster (required)")
-	_ = cmd.MarkFlagRequired("name")
-	cmd.Flags().StringArrayVar(&labelStrs, "labels", nil, "labels in key=value format (repeatable)")
+	cmd.Flags().StringVar(&name, "name", "", "display name for the cluster")
+	cmdutil.AddLabelFlag(cmd, &labelStrs, "set a label (key=value, can be repeated)")
 
 	return cmd
 }

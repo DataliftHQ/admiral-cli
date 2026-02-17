@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
 	clusterv1 "go.admiral.io/sdk/proto/cluster/v1"
@@ -12,9 +13,10 @@ import (
 
 func newStatusCmd(opts *factory.Options) *cobra.Command {
 	return &cobra.Command{
-		Use:   "status <cluster-id>",
-		Short: "Get cluster status and telemetry",
-		Args:  cobra.ExactArgs(1),
+		Use:                   "status <cluster-id>",
+		Short:                 "Get cluster status and telemetry",
+		DisableFlagsInUseLine: true,
+		Args:                  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := factory.CreateClient(cmd.Context(), opts)
 			if err != nil {

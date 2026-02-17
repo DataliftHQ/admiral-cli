@@ -3,6 +3,7 @@ package cluster
 import (
 	"github.com/spf13/cobra"
 
+	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
 	clusterv1 "go.admiral.io/sdk/proto/cluster/v1"
@@ -10,9 +11,10 @@ import (
 
 func newGetCmd(opts *factory.Options) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <cluster-id>",
-		Short: "Get a cluster by ID",
-		Args:  cobra.ExactArgs(1),
+		Use:                   "get <cluster-id>",
+		Short:                 "Get a cluster by ID",
+		DisableFlagsInUseLine: true,
+		Args:                  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := factory.CreateClient(cmd.Context(), opts)
 			if err != nil {
