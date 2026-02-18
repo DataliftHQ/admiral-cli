@@ -11,7 +11,7 @@ import (
 
 func newGetCmd(opts *factory.Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <slug>",
+		Use:   "get <name>",
 		Short: "Get environment details",
 		Long:  `Get detailed information about an environment.`,
 		Example: `  # Get environment details

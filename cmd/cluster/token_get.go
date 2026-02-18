@@ -13,7 +13,7 @@ import (
 
 func newTokenGetCmd(opts *factory.Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <cluster-id> <token-id>",
+		Use:   "get <cluster> <token-id>",
 		Short: "Get a cluster token by ID",
 		Args:  cmdutil.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

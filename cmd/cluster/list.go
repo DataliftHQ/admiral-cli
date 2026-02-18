@@ -46,11 +46,10 @@ func newListCmd(opts *factory.Options) *cobra.Command {
 			p := output.NewPrinter(opts.OutputFormat)
 			if err := p.PrintResource(resp, func(w *tabwriter.Writer) {
 				if opts.OutputFormat == output.FormatWide {
-					output.Writeln(w, "ID\tNAME\tHEALTH\tAGE\tCLUSTER-UID\tLABELS\tCREATED\tUPDATED")
+					output.Writeln(w, "NAME\tHEALTH\tAGE\tCLUSTER-UID\tLABELS\tCREATED\tUPDATED")
 					for _, cl := range resp.Clusters {
-						output.Writef(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-							cl.Id,
-							cl.DisplayName,
+						output.Writef(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+							cl.Name,
 							output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_"),
 							output.FormatAge(cl.CreatedAt),
 							cl.ClusterUid,
@@ -60,11 +59,10 @@ func newListCmd(opts *factory.Options) *cobra.Command {
 						)
 					}
 				} else {
-					output.Writeln(w, "ID\tNAME\tHEALTH\tAGE")
+					output.Writeln(w, "NAME\tHEALTH\tAGE")
 					for _, cl := range resp.Clusters {
-						output.Writef(w, "%s\t%s\t%s\t%s\n",
-							cl.Id,
-							cl.DisplayName,
+						output.Writef(w, "%s\t%s\t%s\n",
+							cl.Name,
 							output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_"),
 							output.FormatAge(cl.CreatedAt),
 						)

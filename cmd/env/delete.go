@@ -14,7 +14,7 @@ func newDeleteCmd(opts *factory.Options) *cobra.Command {
 	var confirm bool
 
 	cmd := &cobra.Command{
-		Use:   "delete <slug>",
+		Use:   "delete <name>",
 		Short: "Delete an environment",
 		Long: `Delete an environment.
 

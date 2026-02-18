@@ -15,7 +15,7 @@ func newTokenCreateCmd(opts *factory.Options) *cobra.Command {
 	var name string
 
 	cmd := &cobra.Command{
-		Use:   "create <cluster-id>",
+		Use:   "create <cluster>",
 		Short: "Create a cluster token",
 		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

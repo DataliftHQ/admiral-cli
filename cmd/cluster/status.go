@@ -13,7 +13,7 @@ import (
 
 func newStatusCmd(opts *factory.Options) *cobra.Command {
 	return &cobra.Command{
-		Use:                   "status <cluster-id>",
+		Use:                   "status <name>",
 		Short:                 "Get cluster status and telemetry",
 		DisableFlagsInUseLine: true,
 		Args:                  cmdutil.ExactArgs(1),

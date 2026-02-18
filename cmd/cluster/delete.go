@@ -16,7 +16,7 @@ func newDeleteCmd(opts *factory.Options) *cobra.Command {
 	var confirm bool
 
 	cmd := &cobra.Command{
-		Use:   "delete <cluster-id>",
+		Use:   "delete <name>",
 		Short: "Delete a cluster",
 		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

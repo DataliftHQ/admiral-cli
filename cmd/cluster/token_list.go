@@ -18,7 +18,7 @@ func newTokenListCmd(opts *factory.Options) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "list <cluster-id>",
+		Use:   "list <cluster>",
 		Short: "List cluster tokens",
 		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

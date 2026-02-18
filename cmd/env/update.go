@@ -12,24 +12,23 @@ import (
 
 func newUpdateCmd(opts *factory.Options) *cobra.Command {
 	var (
-		name           string
 		promotionOrder int32
 		ttl            time.Duration
 	)
 
 	cmd := &cobra.Command{
-		Use:   "update <slug>",
+		Use:   "update <name>",
 		Short: "Update an environment",
 		Long:  `Update an existing environment.`,
-		Example: `  # Update display name
+		Example: `  # Update promotion order
   admiral use billing-api
-  admiral env update staging --name "Staging Environment"
+  admiral env update production --promotion-order 100
 
-  # Update promotion order
-  admiral env update production --promotion-order 100`,
+  # Update TTL for ephemeral environment
+  admiral env update preview-123 --ttl 48h`,
 		Args: cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			slug := args[0]
+			name := args[0]
 
 			app, err := resolveAppForEnv(opts.ConfigDir)
 			if err != nil {
@@ -37,9 +36,6 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 			}
 
 			flags := map[string]any{}
-			if name != "" {
-				flags["name"] = name
-			}
 			if promotionOrder != 0 {
 				flags["promotion-order"] = promotionOrder
 			}
@@ -50,7 +46,7 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 			stub := cmdutil.StubResult{
 				Command:     "env update",
 				App:         app,
-				Environment: slug,
+				Environment: name,
 				Flags:       flags,
 				Status:      cmdutil.StubStatus,
 			}
@@ -59,7 +55,6 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&name, "name", "", "display name for the environment")
 	cmd.Flags().Int32Var(&promotionOrder, "promotion-order", 0, "promotion order (lower = earlier)")
 	cmd.Flags().DurationVar(&ttl, "ttl", 0, "time-to-live for ephemeral environments (e.g. 24h)")
 

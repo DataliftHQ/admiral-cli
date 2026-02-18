@@ -16,7 +16,7 @@ func newTokenRevokeCmd(opts *factory.Options) *cobra.Command {
 	var confirm bool
 
 	cmd := &cobra.Command{
-		Use:   "revoke <cluster-id> <token-id>",
+		Use:   "revoke <cluster> <token-id>",
 		Short: "Revoke a cluster token",
 		Args:  cmdutil.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

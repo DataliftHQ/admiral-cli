@@ -2,13 +2,14 @@ package app
 
 import (
 	"fmt"
-	"os"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
-	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
+	"go.admiral.io/cli/internal/output"
 	"go.admiral.io/cli/internal/properties"
+	applicationv1 "go.admiral.io/sdk/proto/application/v1"
 )
 
 func newDeleteCmd(opts *factory.Options) *cobra.Command {
@@ -41,22 +42,32 @@ Requires --confirm to prevent accidental deletion.`,
 				return err
 			}
 
-			app, err := resolveAppWithHelp(cmd, appArg, props.App)
+			appName, err := resolveAppWithHelp(cmd, appArg, props.App)
 			if err != nil {
 				return err
 			}
 
 			if !confirm {
-				return fmt.Errorf("--confirm is required to delete an application")
+				return fmt.Errorf("use --confirm to delete application %s", appName)
 			}
 
-			stub := cmdutil.StubResult{
-				Command: "app delete",
-				App:     app,
-				Status:  cmdutil.StubStatus,
+			c, err := factory.CreateClient(cmd.Context(), opts)
+			if err != nil {
+				return err
+			}
+			defer c.Close() //nolint:errcheck // best-effort cleanup
+
+			resp, err := c.Application().DeleteApplication(cmd.Context(), &applicationv1.DeleteApplicationRequest{
+				ApplicationId: appName,
+			})
+			if err != nil {
+				return err
 			}
 
-			return cmdutil.PrintStub(os.Stdout, opts.OutputFormat, stub)
+			p := output.NewPrinter(opts.OutputFormat)
+			return p.PrintResource(resp, func(w *tabwriter.Writer) {
+				output.Writef(w, "Application %s deleted\n", appName)
+			})
 		},
 	}
 

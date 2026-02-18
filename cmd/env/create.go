@@ -13,7 +13,6 @@ import (
 
 func newCreateCmd(opts *factory.Options) *cobra.Command {
 	var (
-		name           string
 		cluster        string
 		promotionOrder int32
 		lifecycle      string
@@ -23,7 +22,7 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create <slug>",
+		Use:   "create <name>",
 		Short: "Create an environment",
 		Long:  `Create a new environment within the active application.`,
 		Example: `  # Create a permanent environment
@@ -37,7 +36,7 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
   admiral env create production --cluster us-east-1 --promotion-order 100`,
 		Args: cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			slug := args[0]
+			name := args[0]
 
 			app, err := resolveAppForEnv(opts.ConfigDir)
 			if err != nil {
@@ -54,9 +53,6 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 
 			flags := map[string]any{
 				"cluster": cluster,
-			}
-			if name != "" {
-				flags["name"] = name
 			}
 			if promotionOrder != 0 {
 				flags["promotion-order"] = promotionOrder
@@ -77,7 +73,7 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 			stub := cmdutil.StubResult{
 				Command:     "env create",
 				App:         app,
-				Environment: slug,
+				Environment: name,
 				Flags:       flags,
 				Status:      cmdutil.StubStatus,
 			}
@@ -86,11 +82,10 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&name, "name", "", "display name for the environment")
 	cmd.Flags().StringVar(&cluster, "cluster", "", "target cluster (required)")
 	cmd.Flags().Int32Var(&promotionOrder, "promotion-order", 0, "promotion order (lower = earlier)")
 	cmd.Flags().StringVar(&lifecycle, "lifecycle", "", "lifecycle type: permanent or ephemeral")
-	cmd.Flags().StringVar(&parent, "parent", "", "parent environment slug")
+	cmd.Flags().StringVar(&parent, "parent", "", "parent environment name")
 	cmd.Flags().StringVar(&sourceRef, "source-ref", "", "source reference (branch, tag, or commit)")
 	cmd.Flags().DurationVar(&ttl, "ttl", 0, "time-to-live for ephemeral environments (e.g. 24h)")
 

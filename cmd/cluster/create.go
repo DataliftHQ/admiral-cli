@@ -12,13 +12,10 @@ import (
 )
 
 func newCreateCmd(opts *factory.Options) *cobra.Command {
-	var (
-		name      string
-		labelStrs []string
-	)
+	var labelStrs []string
 
 	cmd := &cobra.Command{
-		Use:   "create <cluster-id>",
+		Use:   "create <name>",
 		Short: "Create a new cluster",
 		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -33,10 +30,9 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
-			// TODO: pass args[0] as ClusterId once the proto adds the field.
 			resp, err := c.Cluster().CreateCluster(cmd.Context(), &clusterv1.CreateClusterRequest{
-				DisplayName: name,
-				Labels:      labels,
+				Name:   args[0],
+				Labels: labels,
 			})
 			if err != nil {
 				return err
@@ -45,10 +41,9 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 			p := output.NewPrinter(opts.OutputFormat)
 			if err := p.PrintResource(resp, func(w *tabwriter.Writer) {
 				cl := resp.Cluster
-				output.Writeln(w, "ID\tNAME\tHEALTH\tAGE")
-				output.Writef(w, "%s\t%s\t%s\t%s\n",
-					cl.Id,
-					cl.DisplayName,
+				output.Writeln(w, "NAME\tHEALTH\tAGE")
+				output.Writef(w, "%s\t%s\t%s\n",
+					cl.Name,
 					output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_"),
 					output.FormatAge(cl.CreatedAt),
 				)
@@ -64,7 +59,6 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&name, "name", "", "display name for the cluster")
 	cmdutil.AddLabelFlag(cmd, &labelStrs, "set a label (key=value, can be repeated)")
 
 	return cmd

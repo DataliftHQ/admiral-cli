@@ -11,8 +11,8 @@ import (
 
 func newGetCmd(opts *factory.Options) *cobra.Command {
 	return &cobra.Command{
-		Use:                   "get <cluster-id>",
-		Short:                 "Get a cluster by ID",
+		Use:                   "get <name>",
+		Short:                 "Get a cluster",
 		DisableFlagsInUseLine: true,
 		Args:                  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -35,8 +35,7 @@ func newGetCmd(opts *factory.Options) *cobra.Command {
 			sections := []output.Section{
 				{
 					Details: []output.Detail{
-						{Key: "Name", Value: cl.DisplayName},
-						{Key: "ID", Value: cl.Id},
+						{Key: "Name", Value: cl.Name},
 						{Key: "Health", Value: output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_")},
 						{Key: "Cluster UID", Value: cl.ClusterUid},
 						{Key: "Labels", Value: output.FormatLabels(cl.Labels)},
