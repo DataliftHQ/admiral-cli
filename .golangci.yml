@@ -19,6 +19,7 @@ linters:
       excludes:
         - G101
         - G115
+        - G117
   exclusions:
     rules:
       - path: (_test\.go|mock\.go)
