@@ -37,11 +37,10 @@ func newTokenGetCmd(opts *factory.Options) *cobra.Command {
 			p := output.NewPrinter(opts.OutputFormat)
 			return p.PrintResource(resp, func(w *tabwriter.Writer) {
 				t := resp.AccessToken
-				output.Writeln(w, "ID\tNAME\tPREFIX\tSTATUS\tCREATED")
-				output.Writef(w, "%s\t%s\t%s\t%s\t%s\n",
+				output.Writeln(w, "ID\tNAME\tSTATUS\tCREATED")
+				output.Writef(w, "%s\t%s\t%s\t%s\n",
 					t.Id,
-					t.DisplayName,
-					t.TokenPrefix,
+					t.Name,
 					output.FormatEnum(t.Status.String(), "ACCESS_TOKEN_STATUS_"),
 					output.FormatTimestamp(t.CreatedAt),
 				)

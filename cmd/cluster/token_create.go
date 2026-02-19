@@ -28,8 +28,8 @@ func newTokenCreateCmd(opts *factory.Options) *cobra.Command {
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
 			resp, err := c.Cluster().CreateClusterToken(cmd.Context(), &clusterv1.CreateClusterTokenRequest{
-				ClusterId:   clusterID,
-				DisplayName: name,
+				ClusterId: clusterID,
+				Name:      name,
 			})
 			if err != nil {
 				return err
@@ -38,11 +38,10 @@ func newTokenCreateCmd(opts *factory.Options) *cobra.Command {
 			p := output.NewPrinter(opts.OutputFormat)
 			if err := p.PrintResource(resp, func(w *tabwriter.Writer) {
 				t := resp.AccessToken
-				output.Writeln(w, "ID\tNAME\tPREFIX\tSTATUS\tCREATED")
-				output.Writef(w, "%s\t%s\t%s\t%s\t%s\n",
+				output.Writeln(w, "ID\tNAME\tSTATUS\tCREATED")
+				output.Writef(w, "%s\t%s\t%s\t%s\n",
 					t.Id,
-					t.DisplayName,
-					t.TokenPrefix,
+					t.Name,
 					output.FormatEnum(t.Status.String(), "ACCESS_TOKEN_STATUS_"),
 					output.FormatTimestamp(t.CreatedAt),
 				)
