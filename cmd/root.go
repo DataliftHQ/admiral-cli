@@ -122,9 +122,9 @@ func newRootCmd(ver version.Version, exit func(int)) *rootCmd {
 	// Auth flags (hidden, for dev/testing override)
 	cmd.PersistentFlags().StringVar(&factoryOpts.Issuer, "issuer", "https://auth.admiral.io", "OIDC identity provider URL")
 	_ = cmd.PersistentFlags().MarkHidden("issuer")
-	cmd.PersistentFlags().StringVar(&factoryOpts.ClientID, "client-id", "44972cb5-9739-4b8d-ac29-6dcccca3e9db", "OAuth client ID")
+	cmd.PersistentFlags().StringVar(&factoryOpts.ClientID, "client-id", "44972cb5-9739-4b8d-ac29-6dcccca3e9db", "OAuth2 client ID")
 	_ = cmd.PersistentFlags().MarkHidden("client-id")
-	cmd.PersistentFlags().StringSliceVar(&factoryOpts.Scopes, "scopes", []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess}, "OAuth scopes")
+	cmd.PersistentFlags().StringSliceVar(&factoryOpts.Scopes, "scopes", []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess}, "OAuth2 scopes")
 	_ = cmd.PersistentFlags().MarkHidden("scopes")
 
 	// General flags

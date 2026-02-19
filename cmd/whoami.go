@@ -31,7 +31,7 @@ func newWhoamiCmd(opts *factory.Options) *cobra.Command {
 				return fmt.Errorf("failed to get user info: %w", err)
 			}
 
-			authType := "OAuth"
+			authType := "OAuth2"
 			if os.Getenv(credentials.EnvToken) != "" {
 				authType = "Token (ADMIRAL_TOKEN)"
 			}
