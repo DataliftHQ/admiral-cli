@@ -11,7 +11,7 @@ import (
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
 	"go.admiral.io/cli/internal/properties"
-	userv1 "go.admiral.io/sdk/proto/user/v1"
+	userv1 "go.admiral.io/sdk/proto/admiral/api/user/v1"
 )
 
 func newWhoamiCmd(opts *factory.Options) *cobra.Command {

@@ -8,7 +8,7 @@ import (
 	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
-	applicationv1 "go.admiral.io/sdk/proto/application/v1"
+	applicationv1 "go.admiral.io/sdk/proto/admiral/api/application/v1"
 )
 
 func newCreateCmd(opts *factory.Options) *cobra.Command {

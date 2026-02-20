@@ -7,14 +7,14 @@ require (
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	go.admiral.io/sdk v1.2.4
+	go.admiral.io/sdk v1.2.5
 	golang.org/x/oauth2 v0.35.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	buf.build/gen/go/admiral/common/protocolbuffers/go v1.36.11-20260219013845-a9ac3e7c0097.1 // indirect
+	buf.build/gen/go/admiral/common/protocolbuffers/go v1.36.11-20260220031602-e61c39c6d1c4.1 // indirect
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260209202127-80ab13bee0bf.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect

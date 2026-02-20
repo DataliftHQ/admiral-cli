@@ -11,7 +11,7 @@ import (
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
 	"go.admiral.io/cli/internal/properties"
-	applicationv1 "go.admiral.io/sdk/proto/application/v1"
+	applicationv1 "go.admiral.io/sdk/proto/admiral/api/application/v1"
 )
 
 func newUpdateCmd(opts *factory.Options) *cobra.Command {

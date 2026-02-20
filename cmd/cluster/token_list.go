@@ -8,7 +8,7 @@ import (
 	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
-	clusterv1 "go.admiral.io/sdk/proto/cluster/v1"
+	clusterv1 "go.admiral.io/sdk/proto/admiral/api/cluster/v1"
 )
 
 func newTokenListCmd(opts *factory.Options) *cobra.Command {
