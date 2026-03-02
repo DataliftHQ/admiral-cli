@@ -35,7 +35,7 @@ func (cmd *rootCmd) Execute(args []string) {
 		if errors.As(err, &eerr) {
 			code = eerr.code
 		}
-		output.Writef(os.Stderr, "Error: %s\n", err)
+		output.Writef(os.Stderr, "Error: %s\n", formatError(err))
 		cmd.exit(code)
 	}
 }
@@ -146,7 +146,6 @@ func newRootCmd(ver version.Version, exit func(int)) *rootCmd {
 	// Utility commands
 	cmd.AddCommand(
 		newCompletionCmd(),
-		newUseCmd(&factoryOpts),
 		newVersionCmd(ver),
 		newWhoamiCmd(&factoryOpts),
 	)

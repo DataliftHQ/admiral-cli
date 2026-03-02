@@ -55,15 +55,18 @@ func newListCmd(opts *factory.Options) *cobra.Command {
 			p := output.NewPrinter(opts.OutputFormat)
 			if err := p.PrintResource(resp, func(w *tabwriter.Writer) {
 				if opts.OutputFormat == output.FormatWide {
-					output.Writeln(w, "NAME\tDESCRIPTION\tAGE\tLABELS\tCREATED\tUPDATED")
+					output.Writeln(w, "ID\tNAME\tDESCRIPTION\tLABELS\tCREATED BY\tUPDATED BY\tCREATED\tUPDATED\tAGE")
 					for _, app := range resp.Applications {
-						output.Writef(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+						output.Writef(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+							app.Id,
 							app.Name,
 							app.Description,
-							output.FormatAge(app.CreatedAt),
 							output.FormatLabels(app.Labels),
+							app.CreatedBy,
+							app.UpdatedBy,
 							output.FormatTimestamp(app.CreatedAt),
 							output.FormatTimestamp(app.UpdatedAt),
+							output.FormatAge(app.CreatedAt),
 						)
 					}
 				} else {
@@ -80,7 +83,7 @@ func newListCmd(opts *factory.Options) *cobra.Command {
 				return err
 			}
 
-			if resp.NextPageToken != "" {
+			if resp.NextPageToken != "" && opts.OutputFormat != output.FormatJSON && opts.OutputFormat != output.FormatYAML {
 				output.Writef(cmd.ErrOrStderr(), "\nNext page token: %s\n", resp.NextPageToken)
 			}
 

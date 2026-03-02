@@ -57,7 +57,7 @@ func BuildLabelFilter(labels []string) (string, error) {
 		if len(kv) != 2 {
 			return "", fmt.Errorf("invalid label format %q: expected key=value", l)
 		}
-		parts = append(parts, fmt.Sprintf("labels.%s = %q", kv[0], kv[1]))
+		parts = append(parts, fmt.Sprintf("field['labels.%s'] = '%s'", kv[0], kv[1]))
 	}
 	return strings.Join(parts, " AND "), nil
 }

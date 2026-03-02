@@ -10,12 +10,13 @@ import (
 	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
-	"go.admiral.io/cli/internal/properties"
 	applicationv1 "go.admiral.io/sdk/proto/admiral/api/application/v1"
 )
 
 func newUpdateCmd(opts *factory.Options) *cobra.Command {
 	var (
+		appID       string
+		newName     string
 		labelStrs   []string
 		description string
 	)
@@ -25,36 +26,34 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 		Short: "Update an application",
 		Long: `Update an existing application.
 
-The app can be provided as a positional argument or resolved from the
-active context set via 'admiral use <app>'.`,
-		Example: `  # Update labels
+The app can be provided as a positional argument (name) or looked up by UUID with --id.`,
+		Example: `  # Update labels by name (default)
   admiral app update billing-api --label team=payments
 
-  # Update description
-  admiral app update billing-api --description "New description"
+  # Update by UUID
+  admiral app update --id 550e8400-e29b-41d4-a716-446655440000 --label team=payments
 
-  # Update labels using active context
-  admiral use billing-api
-  admiral app update --label team=payments`,
+  # Update description
+  admiral app update billing-api --description "New description"`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var appArg string
 			if len(args) == 1 {
 				appArg = args[0]
 			}
-
-			props, err := properties.Load(opts.ConfigDir)
-			if err != nil {
-				return err
-			}
-
-			appName, err := resolveAppWithHelp(cmd, appArg, props.App)
-			if err != nil {
-				return err
+			if appArg == "" && appID == "" {
+				_ = cmd.Help()
+				_, _ = fmt.Fprintln(cmd.ErrOrStderr())
+				return fmt.Errorf("app name or --id is required")
 			}
 
 			var paths []string
-			application := &applicationv1.Application{Id: appName}
+			application := &applicationv1.Application{}
+
+			if cmd.Flags().Changed("name") {
+				application.Name = newName
+				paths = append(paths, "name")
+			}
 
 			if cmd.Flags().Changed("label") {
 				labels, err := cmdutil.ParseLabels(labelStrs)
@@ -71,7 +70,7 @@ active context set via 'admiral use <app>'.`,
 			}
 
 			if len(paths) == 0 {
-				return fmt.Errorf("at least --label or --description must be specified")
+				return fmt.Errorf("at least one of --name, --label, or --description must be specified")
 			}
 
 			c, err := factory.CreateClient(cmd.Context(), opts)
@@ -79,6 +78,13 @@ active context set via 'admiral use <app>'.`,
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
+
+			id, err := cmdutil.ResolveAppID(cmd.Context(), c.Application(), appArg, appID)
+			if err != nil {
+				return err
+			}
+
+			application.Id = id
 
 			resp, err := c.Application().UpdateApplication(cmd.Context(), &applicationv1.UpdateApplicationRequest{
 				Application: application,
@@ -101,6 +107,8 @@ active context set via 'admiral use <app>'.`,
 		},
 	}
 
+	cmd.Flags().StringVar(&appID, "id", "", "application ID (UUID)")
+	cmd.Flags().StringVar(&newName, "name", "", "new application name")
 	cmdutil.AddLabelFlag(cmd, &labelStrs, "label to set (key=value, repeatable)")
 	cmd.Flags().StringVar(&description, "description", "", "application description")
 

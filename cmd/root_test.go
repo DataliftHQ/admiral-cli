@@ -7,6 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"go.admiral.io/cli/internal/version"
 )
@@ -57,7 +59,7 @@ func TestRootCmd_HasExpectedSubcommands(t *testing.T) {
 	root := newRootCmd(testversion, mem.Exit).cmd
 
 	expected := []string{
-		"auth", "cluster", "version", "completion", "whoami", "use",
+		"auth", "cluster", "version", "completion", "whoami",
 	}
 
 	names := make([]string, 0, len(root.Commands()))
@@ -445,7 +447,7 @@ func TestClusterCreate_RequiresNameFlag(t *testing.T) {
 
 	err := root.Execute()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "name")
+	require.Contains(t, err.Error(), "requires 1 arg(s)")
 }
 
 func TestClusterTokenCreate_RequiresNameFlag(t *testing.T) {
@@ -470,88 +472,6 @@ func TestRootCmd_VerboseFlag(t *testing.T) {
 	root.SetArgs([]string{"-v", "version"})
 
 	require.NoError(t, root.Execute())
-}
-
-// ---------------------------------------------------------------------------
-// Use command
-// ---------------------------------------------------------------------------
-
-func TestUseCmd_SetApp(t *testing.T) {
-	dir := t.TempDir()
-	var buf bytes.Buffer
-	mem := &exitMemento{}
-	root := newRootCmd(testversion, mem.Exit).cmd
-	root.SetOut(&buf)
-	root.SetArgs([]string{"--config-dir", dir, "use", "my-app"})
-
-	require.NoError(t, root.Execute())
-	require.Contains(t, buf.String(), "my-app")
-}
-
-func TestUseCmd_ShowContext(t *testing.T) {
-	dir := t.TempDir()
-	mem := &exitMemento{}
-
-	// Set context first.
-	root := newRootCmd(testversion, mem.Exit).cmd
-	root.SetArgs([]string{"--config-dir", dir, "use", "my-app"})
-	require.NoError(t, root.Execute())
-
-	// Show context.
-	var buf bytes.Buffer
-	root2 := newRootCmd(testversion, mem.Exit).cmd
-	root2.SetOut(&buf)
-	root2.SetArgs([]string{"--config-dir", dir, "use"})
-	require.NoError(t, root2.Execute())
-
-	require.Contains(t, buf.String(), "my-app")
-}
-
-func TestUseCmd_ShowNoContext(t *testing.T) {
-	dir := t.TempDir()
-	var buf bytes.Buffer
-	mem := &exitMemento{}
-	root := newRootCmd(testversion, mem.Exit).cmd
-	root.SetOut(&buf)
-	root.SetArgs([]string{"--config-dir", dir, "use"})
-
-	require.NoError(t, root.Execute())
-	require.Contains(t, buf.String(), "No active app context")
-}
-
-func TestUseCmd_Clear(t *testing.T) {
-	dir := t.TempDir()
-	mem := &exitMemento{}
-
-	// Set context first.
-	root := newRootCmd(testversion, mem.Exit).cmd
-	root.SetArgs([]string{"--config-dir", dir, "use", "my-app"})
-	require.NoError(t, root.Execute())
-
-	// Clear it.
-	var buf bytes.Buffer
-	root2 := newRootCmd(testversion, mem.Exit).cmd
-	root2.SetOut(&buf)
-	root2.SetArgs([]string{"--config-dir", dir, "use", "--clear"})
-	require.NoError(t, root2.Execute())
-	require.Contains(t, buf.String(), "Context cleared")
-
-	// Verify it's gone.
-	var buf2 bytes.Buffer
-	root3 := newRootCmd(testversion, mem.Exit).cmd
-	root3.SetOut(&buf2)
-	root3.SetArgs([]string{"--config-dir", dir, "use"})
-	require.NoError(t, root3.Execute())
-	require.Contains(t, buf2.String(), "No active app context")
-}
-
-func TestUseCmd_RejectsTooManyArgs(t *testing.T) {
-	mem := &exitMemento{}
-	root := newRootCmd(testversion, mem.Exit).cmd
-	root.SetArgs([]string{"use", "app1", "app2"})
-
-	err := root.Execute()
-	require.Error(t, err)
 }
 
 // ---------------------------------------------------------------------------
@@ -585,4 +505,38 @@ type simpleError struct {
 
 func (e *simpleError) Error() string {
 	return e.msg
+}
+
+// ---------------------------------------------------------------------------
+// formatError
+// ---------------------------------------------------------------------------
+
+func TestFormatError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{
+			name: "plain error passes through",
+			err:  &simpleError{"no app specified"},
+			want: "no app specified",
+		},
+		{
+			name: "nested gRPC error extracts innermost message",
+			err: status.Error(codes.Internal,
+				"failed to create application: rpc error: code = AlreadyExists desc = Application with this name already exists in the tenant"),
+			want: "Application with this name already exists in the tenant",
+		},
+		{
+			name: "single gRPC error extracts message",
+			err:  status.Error(codes.NotFound, "cluster not found"),
+			want: "cluster not found",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, formatError(tc.err))
+		})
+	}
 }

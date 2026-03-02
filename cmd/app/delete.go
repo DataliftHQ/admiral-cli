@@ -6,49 +6,49 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
-	"go.admiral.io/cli/internal/properties"
 	applicationv1 "go.admiral.io/sdk/proto/admiral/api/application/v1"
 )
 
 func newDeleteCmd(opts *factory.Options) *cobra.Command {
-	var confirm bool
+	var (
+		appID   string
+		confirm bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "delete [app]",
 		Short: "Delete an application",
 		Long: `Delete an application.
 
-The app can be provided as a positional argument or resolved from the
-active context set via 'admiral use <app>'.
-
+The app can be provided as a positional argument (name) or looked up by UUID with --id.
 Requires --confirm to prevent accidental deletion.`,
-		Example: `  # Delete an application
+		Example: `  # Delete an application by name
   admiral app delete billing-api --confirm
 
-  # Delete using active context
-  admiral use billing-api
-  admiral app delete --confirm`,
+  # Delete by UUID
+  admiral app delete --id 550e8400-e29b-41d4-a716-446655440000 --confirm`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var appArg string
 			if len(args) == 1 {
 				appArg = args[0]
 			}
-
-			props, err := properties.Load(opts.ConfigDir)
-			if err != nil {
-				return err
+			if appArg == "" && appID == "" {
+				_ = cmd.Help()
+				_, _ = fmt.Fprintln(cmd.ErrOrStderr())
+				return fmt.Errorf("app name or --id is required")
 			}
 
-			appName, err := resolveAppWithHelp(cmd, appArg, props.App)
-			if err != nil {
-				return err
+			display := appArg
+			if display == "" {
+				display = appID
 			}
 
 			if !confirm {
-				return fmt.Errorf("use --confirm to delete application %s", appName)
+				return fmt.Errorf("use --confirm to delete application %s", display)
 			}
 
 			c, err := factory.CreateClient(cmd.Context(), opts)
@@ -57,8 +57,13 @@ Requires --confirm to prevent accidental deletion.`,
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
+			id, err := cmdutil.ResolveAppID(cmd.Context(), c.Application(), appArg, appID)
+			if err != nil {
+				return err
+			}
+
 			resp, err := c.Application().DeleteApplication(cmd.Context(), &applicationv1.DeleteApplicationRequest{
-				ApplicationId: appName,
+				ApplicationId: id,
 			})
 			if err != nil {
 				return err
@@ -66,11 +71,12 @@ Requires --confirm to prevent accidental deletion.`,
 
 			p := output.NewPrinter(opts.OutputFormat)
 			return p.PrintResource(resp, func(w *tabwriter.Writer) {
-				output.Writef(w, "Application %s deleted\n", appName)
+				output.Writef(w, "Application %s deleted\n", display)
 			})
 		},
 	}
 
+	cmd.Flags().StringVar(&appID, "id", "", "application ID (UUID)")
 	cmd.Flags().BoolVar(&confirm, "confirm", false, "confirm deletion")
 
 	return cmd
