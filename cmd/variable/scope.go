@@ -1,16 +1,15 @@
 package variable
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"go.admiral.io/cli/internal/output"
+	variablev1 "go.admiral.io/sdk/proto/admiral/api/variable/v1"
 )
 
 // scope represents the resolved variable scope.
@@ -34,7 +33,7 @@ type resolvedScope struct {
 // Rules:
 //   - --global is mutually exclusive with --env and app arg
 //   - app arg overrides context app
-//   - no app + no --global = error
+//   - no app + no --global = GLOBAL (implicit)
 //   - --env requires an app (from arg or context)
 func resolveScope(globalFlag bool, envFlag string, appArg string, contextApp string) (resolvedScope, error) {
 	app := contextApp
@@ -53,7 +52,7 @@ func resolveScope(globalFlag bool, envFlag string, appArg string, contextApp str
 	}
 
 	if app == "" {
-		return resolvedScope{}, fmt.Errorf("no app specified; use a positional argument or set context with 'admiral use <app>'")
+		return resolvedScope{Scope: scopeGlobal}, nil
 	}
 
 	if envFlag != "" {
@@ -75,7 +74,7 @@ func resolveScopeWithHelp(cmd *cobra.Command, globalFlag bool, envFlag, appArg, 
 	return rs, nil
 }
 
-// splitArgs separates mixed positional arguments for the set command.
+// splitArgs separates mixed positional arguments for the create command.
 // Arguments containing "=" are treated as KEY=VALUE pairs.
 // The first argument without "=" is treated as the app name.
 // A second bare argument is an error.
@@ -108,7 +107,7 @@ func parseKV(s string) (key, value string, err error) {
 func splitArgsWithKey(args []string) (appArg, key string, err error) {
 	for _, arg := range args {
 		if strings.Contains(arg, "=") {
-			return "", "", fmt.Errorf("unexpected KEY=VALUE argument %q; use 'variable set' to set values", arg)
+			return "", "", fmt.Errorf("unexpected KEY=VALUE argument %q; use 'variable create' to create variables", arg)
 		}
 	}
 
@@ -122,64 +121,86 @@ func splitArgsWithKey(args []string) (appArg, key string, err error) {
 	}
 }
 
-// stubResult holds the parameters that would be sent to the API.
-type stubResult struct {
-	Operation   string            `json:"operation" yaml:"operation"`
-	Scope       string            `json:"scope" yaml:"scope"`
-	App         string            `json:"app,omitempty" yaml:"app,omitempty"`
-	Environment string            `json:"environment,omitempty" yaml:"environment,omitempty"`
-	Key         string            `json:"key,omitempty" yaml:"key,omitempty"`
-	Variables   map[string]string `json:"variables,omitempty" yaml:"variables,omitempty"`
-	Sensitive   bool              `json:"sensitive,omitempty" yaml:"sensitive,omitempty"`
-	Status      string            `json:"status" yaml:"status"`
+// formatValue returns the variable value or a masked placeholder if sensitive.
+func formatValue(v *variablev1.Variable) string {
+	if v.Sensitive {
+		return "********"
+	}
+	return v.Value
 }
 
-const stubStatus = "not yet implemented (proto/gRPC pending)"
-
-func printStub(w io.Writer, format output.Format, stub stubResult) error {
-	switch format {
-	case output.FormatJSON:
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(stub)
-	case output.FormatYAML:
-		return yaml.NewEncoder(w).Encode(stub)
-	case output.FormatTable, output.FormatWide:
-		return printStubTable(w, stub)
-	default:
-		return fmt.Errorf("unsupported format: %s", format)
+// formatScope returns a human-readable scope string based on the variable's IDs.
+func formatScope(v *variablev1.Variable) string {
+	if v.ApplicationId != nil && v.EnvironmentId != nil {
+		return "App+Env"
 	}
+	if v.ApplicationId != nil {
+		return "App"
+	}
+	return "Global"
 }
 
-func printStubTable(out io.Writer, stub stubResult) error {
-	w := tabwriter.NewWriter(out, 0, 0, 3, ' ', 0)
-
-	output.Writef(w, "Operation:\t%s\n", stub.Operation)
-	output.Writef(w, "Scope:\t%s\n", stub.Scope)
-
-	if stub.App != "" {
-		output.Writef(w, "App:\t%s\n", stub.App)
+// formatSensitive returns "Yes" or "No".
+func formatSensitive(b bool) string {
+	if b {
+		return "Yes"
 	}
-	if stub.Environment != "" {
-		output.Writef(w, "Environment:\t%s\n", stub.Environment)
+	return "No"
+}
+
+// stringPtrOrNone returns the pointed-to string or "<none>".
+func stringPtrOrNone(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return "<none>"
+}
+
+// checkShadowWarning prints a best-effort warning to stderr if the key already
+// exists at a broader scope that would be shadowed by the new variable.
+func checkShadowWarning(
+	ctx context.Context,
+	stderr io.Writer,
+	varClient variablev1.VariableAPIClient,
+	key string,
+	rs resolvedScope,
+	appID, envID string,
+) {
+	// Only check for shadowing when creating at app or app+env scope.
+	if rs.Scope == scopeGlobal {
+		return
 	}
 
-	if stub.Key != "" {
-		output.Writef(w, "Key:\t%s\n", stub.Key)
+	filters := []string{fmt.Sprintf("field['key'] = '%s'", key)}
+
+	// For app+env scope, check if the key exists at app or global scope.
+	// For app scope, check if the key exists at global scope.
+	// We list with the app filter (which returns merged global+app results).
+	if appID != "" {
+		filters = append(filters, fmt.Sprintf("field['application_id'] = '%s'", appID))
 	}
 
-	if len(stub.Variables) > 0 {
-		output.Writeln(w, "Variables:")
-		for k, v := range stub.Variables {
-			output.Writef(w, "  %s\t= %s\n", k, v)
+	resp, err := varClient.ListVariables(ctx, &variablev1.ListVariablesRequest{
+		Filter: strings.Join(filters, " AND "),
+	})
+	if err != nil {
+		return // best-effort, ignore errors
+	}
+
+	for _, v := range resp.Variables {
+		vScope := formatScope(v)
+		// Skip if this is the same scope we're creating at.
+		vEnvID := ""
+		if v.EnvironmentId != nil {
+			vEnvID = *v.EnvironmentId
 		}
+		vAppID := ""
+		if v.ApplicationId != nil {
+			vAppID = *v.ApplicationId
+		}
+		if vAppID == appID && vEnvID == envID {
+			continue
+		}
+		output.Writef(stderr, "Warning: %q already exists at %s scope and will be shadowed\n", key, vScope)
 	}
-
-	if stub.Sensitive {
-		output.Writef(w, "Sensitive:\ttrue\n")
-	}
-
-	output.Writef(w, "\nStatus:\t%s\n", stub.Status)
-
-	return w.Flush()
 }

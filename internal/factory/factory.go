@@ -19,9 +19,6 @@ type Options struct {
 	ConfigDir    string
 	OutputFormat output.Format
 
-	// App is the active application name, set by --app on subcommand groups.
-	App string
-
 	// OIDC settings (used by auth commands)
 	Issuer   string
 	ClientID string

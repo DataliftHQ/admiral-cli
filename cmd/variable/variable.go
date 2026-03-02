@@ -20,12 +20,13 @@ func NewVariableCmd(opts *factory.Options) *VariableCmd {
 		Short: "Manage configuration variables",
 		Long: `Manage configuration variables scoped to an app, app+environment, or globally.
 
-Most commands require an app context. You can provide it in two ways:
-  1. As a positional argument:  admiral variable list my-api
-  2. From the active context:   admiral use my-api && admiral variable list
+Scope is inferred from arguments:
+  admiral variable list                     → GLOBAL (no app, no env)
+  admiral variable list my-api              → APP
+  admiral variable list my-api -e staging   → APP_ENV
 
-Use --global for variables that apply across all apps.
-Use -e/--env to target a specific environment within an app.`,
+Use --global for explicitness. Use -e/--env to target a specific
+environment within an app.`,
 		Aliases:       []string{"var"},
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -33,9 +34,10 @@ Use -e/--env to target a specific environment within an app.`,
 	}
 
 	cmd.AddCommand(
-		newSetCmd(opts),
+		newCreateCmd(opts),
 		newGetCmd(opts),
 		newListCmd(opts),
+		newUpdateCmd(opts),
 		newDeleteCmd(opts),
 	)
 

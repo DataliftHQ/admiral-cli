@@ -14,6 +14,7 @@ import (
 	authcmd "go.admiral.io/cli/cmd/auth"
 	clustercmd "go.admiral.io/cli/cmd/cluster"
 	envcmd "go.admiral.io/cli/cmd/env"
+	mcpcmd "go.admiral.io/cli/cmd/mcp"
 	variablecmd "go.admiral.io/cli/cmd/variable"
 	"go.admiral.io/cli/internal/config"
 	"go.admiral.io/cli/internal/credentials"
@@ -142,6 +143,9 @@ func newRootCmd(ver version.Version, exit func(int)) *rootCmd {
 		envcmd.NewEnvCmd(&factoryOpts).Cmd,
 		variablecmd.NewVariableCmd(&factoryOpts).Cmd,
 	)
+
+	// MCP server
+	cmd.AddCommand(mcpcmd.NewMCPCmd(&factoryOpts).Cmd)
 
 	// Utility commands
 	cmd.AddCommand(
