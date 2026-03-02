@@ -73,7 +73,7 @@ func newListCmd(opts *factory.Options) *cobra.Command {
 			}
 
 			if resp.NextPageToken != "" && opts.OutputFormat != output.FormatJSON && opts.OutputFormat != output.FormatYAML {
-				output.Writef(cmd.ErrOrStderr(), "\nNext page token: %s\n", resp.NextPageToken)
+				output.Writef(cmd.ErrOrStderr(), "\nNEXT PAGE TOKEN: %s\n", resp.NextPageToken)
 			}
 
 			return nil
