@@ -20,7 +20,6 @@ func newTokenRevokeCmd(opts *factory.Options) *cobra.Command {
 		Short: "Revoke a cluster token",
 		Args:  cmdutil.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clusterID := args[0]
 			tokenID := args[1]
 
 			if !confirm {
@@ -32,6 +31,11 @@ func newTokenRevokeCmd(opts *factory.Options) *cobra.Command {
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
+
+			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), args[0])
+			if err != nil {
+				return err
+			}
 
 			resp, err := c.Cluster().RevokeClusterToken(cmd.Context(), &clusterv1.RevokeClusterTokenRequest{
 				ClusterId: clusterID,

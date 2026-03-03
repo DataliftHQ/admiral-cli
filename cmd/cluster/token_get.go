@@ -17,7 +17,6 @@ func newTokenGetCmd(opts *factory.Options) *cobra.Command {
 		Short: "Get a cluster token by ID",
 		Args:  cmdutil.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clusterID := args[0]
 			tokenID := args[1]
 
 			c, err := factory.CreateClient(cmd.Context(), opts)
@@ -25,6 +24,11 @@ func newTokenGetCmd(opts *factory.Options) *cobra.Command {
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
+
+			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), args[0])
+			if err != nil {
+				return err
+			}
 
 			resp, err := c.Cluster().GetClusterToken(cmd.Context(), &clusterv1.GetClusterTokenRequest{
 				ClusterId: clusterID,

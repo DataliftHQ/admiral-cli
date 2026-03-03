@@ -22,13 +22,16 @@ func newTokenListCmd(opts *factory.Options) *cobra.Command {
 		Short: "List cluster tokens",
 		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clusterID := args[0]
-
 			c, err := factory.CreateClient(cmd.Context(), opts)
 			if err != nil {
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
+
+			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), args[0])
+			if err != nil {
+				return err
+			}
 
 			resp, err := c.Cluster().ListClusterTokens(cmd.Context(), &clusterv1.ListClusterTokensRequest{
 				ClusterId: clusterID,

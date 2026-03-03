@@ -24,8 +24,13 @@ func newStatusCmd(opts *factory.Options) *cobra.Command {
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
+			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), args[0])
+			if err != nil {
+				return err
+			}
+
 			resp, err := c.Cluster().GetClusterStatus(cmd.Context(), &clusterv1.GetClusterStatusRequest{
-				ClusterId: args[0],
+				ClusterId: clusterID,
 			})
 			if err != nil {
 				return err

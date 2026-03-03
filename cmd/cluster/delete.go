@@ -20,10 +20,10 @@ func newDeleteCmd(opts *factory.Options) *cobra.Command {
 		Short: "Delete a cluster",
 		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id := args[0]
+			name := args[0]
 
 			if !confirm {
-				return fmt.Errorf("use --confirm to delete cluster %s", id)
+				return fmt.Errorf("use --confirm to delete cluster %s", name)
 			}
 
 			c, err := factory.CreateClient(cmd.Context(), opts)
@@ -32,8 +32,13 @@ func newDeleteCmd(opts *factory.Options) *cobra.Command {
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
+			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), name)
+			if err != nil {
+				return err
+			}
+
 			resp, err := c.Cluster().DeleteCluster(cmd.Context(), &clusterv1.DeleteClusterRequest{
-				ClusterId: id,
+				ClusterId: clusterID,
 			})
 			if err != nil {
 				return err
@@ -41,7 +46,7 @@ func newDeleteCmd(opts *factory.Options) *cobra.Command {
 
 			p := output.NewPrinter(opts.OutputFormat)
 			return p.PrintResource(resp, func(w *tabwriter.Writer) {
-				output.Writef(w, "Cluster %s deleted\n", id)
+				output.Writef(w, "Cluster %s deleted\n", name)
 			})
 		},
 	}

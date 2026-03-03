@@ -12,7 +12,10 @@ import (
 )
 
 func newCreateCmd(opts *factory.Options) *cobra.Command {
-	var labelStrs []string
+	var (
+		labelStrs   []string
+		description string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "create <name>",
@@ -31,8 +34,9 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
 			resp, err := c.Cluster().CreateCluster(cmd.Context(), &clusterv1.CreateClusterRequest{
-				Name:   args[0],
-				Labels: labels,
+				Name:        args[0],
+				Description: description,
+				Labels:      labels,
 			})
 			if err != nil {
 				return err
@@ -59,6 +63,7 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&description, "description", "", "cluster description")
 	cmdutil.AddLabelFlag(cmd, &labelStrs, "set a label (key=value, can be repeated)")
 
 	return cmd

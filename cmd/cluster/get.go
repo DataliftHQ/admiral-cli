@@ -22,8 +22,13 @@ func newGetCmd(opts *factory.Options) *cobra.Command {
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
+			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), args[0])
+			if err != nil {
+				return err
+			}
+
 			resp, err := c.Cluster().GetCluster(cmd.Context(), &clusterv1.GetClusterRequest{
-				ClusterId: args[0],
+				ClusterId: clusterID,
 			})
 			if err != nil {
 				return err
@@ -36,6 +41,7 @@ func newGetCmd(opts *factory.Options) *cobra.Command {
 				{
 					Details: []output.Detail{
 						{Key: "Name", Value: cl.Name},
+						{Key: "Description", Value: cl.Description},
 						{Key: "Health", Value: output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_")},
 						{Key: "Cluster UID", Value: cl.ClusterUid},
 						{Key: "Labels", Value: output.FormatLabels(cl.Labels)},

@@ -19,13 +19,16 @@ func newTokenCreateCmd(opts *factory.Options) *cobra.Command {
 		Short: "Create a cluster token",
 		Args:  cmdutil.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clusterID := args[0]
-
 			c, err := factory.CreateClient(cmd.Context(), opts)
 			if err != nil {
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
+
+			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), args[0])
+			if err != nil {
+				return err
+			}
 
 			resp, err := c.Cluster().CreateClusterToken(cmd.Context(), &clusterv1.CreateClusterTokenRequest{
 				ClusterId: clusterID,

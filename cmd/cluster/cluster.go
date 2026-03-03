@@ -34,6 +34,7 @@ func NewClusterCmd(opts *factory.Options) *ClusterCmd {
 		newDeleteCmd(opts),
 		newStatusCmd(opts),
 		tokenCmd,
+		newWorkloadCmd(opts),
 	)
 
 	root.Cmd = cmd
