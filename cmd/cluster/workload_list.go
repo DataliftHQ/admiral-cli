@@ -15,6 +15,7 @@ import (
 
 func newWorkloadListCmd(opts *factory.Options) *cobra.Command {
 	var (
+		clusterID    string
 		pageSize     int32
 		pageToken    string
 		namespace    string
@@ -24,17 +25,25 @@ func newWorkloadListCmd(opts *factory.Options) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "list <cluster>",
+		Use:   "list [cluster]",
 		Short: "List workloads in a cluster",
-		Args:  cmdutil.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			clusterName := ""
+			if len(args) > 0 {
+				clusterName = args[0]
+			}
+			if clusterName == "" && clusterID == "" {
+				return fmt.Errorf("provide a cluster name or use --cluster-id")
+			}
+
 			c, err := factory.CreateClient(cmd.Context(), opts)
 			if err != nil {
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
-			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), args[0])
+			resolvedClusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), clusterName, clusterID)
 			if err != nil {
 				return err
 			}
@@ -42,7 +51,7 @@ func newWorkloadListCmd(opts *factory.Options) *cobra.Command {
 			filter := buildWorkloadFilter(namespace, kind, name, healthStatus)
 
 			resp, err := c.Cluster().ListWorkloads(cmd.Context(), &clusterv1.ListWorkloadsRequest{
-				ClusterId: clusterID,
+				ClusterId: resolvedClusterID,
 				Filter:    filter,
 				PageSize:  pageSize,
 				PageToken: pageToken,
@@ -94,6 +103,7 @@ func newWorkloadListCmd(opts *factory.Options) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&clusterID, "cluster-id", "", "cluster UUID (bypasses name resolution)")
 	cmd.Flags().Int32Var(&pageSize, "page-size", 50, "number of workloads to return per page")
 	cmd.Flags().StringVar(&pageToken, "page-token", "", "token for the next page of results")
 	cmd.Flags().StringVar(&namespace, "namespace", "", "filter by namespace")

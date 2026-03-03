@@ -65,12 +65,52 @@ func ResolveEnvID(ctx context.Context, envClient environmentv1.EnvironmentAPICli
 	}
 }
 
-// ResolveClusterID resolves a cluster name to its UUID.
-// If the value is already a UUID (or empty), it is returned directly.
-// Otherwise, the name is looked up via the list endpoint with a name filter.
-func ResolveClusterID(ctx context.Context, clusterClient clusterv1.ClusterAPIClient, name string) (string, error) {
+// ResolveClusterTokenID resolves a cluster token identifier to its UUID.
+// If idFlag is set, it is returned directly. Otherwise, the name is looked up
+// via the list endpoint with a name filter (with client-side fallback).
+func ResolveClusterTokenID(ctx context.Context, clusterClient clusterv1.ClusterAPIClient, clusterID, name, idFlag string) (string, error) {
+	if idFlag != "" {
+		return idFlag, nil
+	}
 	if name == "" {
-		return "", fmt.Errorf("no cluster name provided")
+		return "", fmt.Errorf("no token name or ID provided")
+	}
+
+	resp, err := clusterClient.ListClusterTokens(ctx, &clusterv1.ListClusterTokensRequest{
+		ClusterId: clusterID,
+		Filter:    fmt.Sprintf("field['name'] = '%s'", name),
+	})
+	if err != nil {
+		return "", fmt.Errorf("looking up token %q: %w", name, err)
+	}
+
+	// Client-side filter: the API may not apply the name filter.
+	var matched []string
+	for _, t := range resp.AccessTokens {
+		if t.Name == name {
+			matched = append(matched, t.Id)
+		}
+	}
+
+	switch len(matched) {
+	case 0:
+		return "", fmt.Errorf("token %q not found", name)
+	case 1:
+		return matched[0], nil
+	default:
+		return "", fmt.Errorf("multiple tokens match name %q; use --token-id to specify", name)
+	}
+}
+
+// ResolveClusterID resolves a cluster identifier to its UUID.
+// If idFlag is set, it is returned directly. Otherwise, the name is looked up
+// via the list endpoint with a name filter.
+func ResolveClusterID(ctx context.Context, clusterClient clusterv1.ClusterAPIClient, name, idFlag string) (string, error) {
+	if idFlag != "" {
+		return idFlag, nil
+	}
+	if name == "" {
+		return "", fmt.Errorf("no cluster name or ID provided")
 	}
 
 	resp, err := clusterClient.ListClusters(ctx, &clusterv1.ListClustersRequest{
@@ -86,6 +126,6 @@ func ResolveClusterID(ctx context.Context, clusterClient clusterv1.ClusterAPICli
 	case 1:
 		return resp.Clusters[0].Id, nil
 	default:
-		return "", fmt.Errorf("multiple clusters match name %q", name)
+		return "", fmt.Errorf("multiple clusters match name %q; use --id to specify", name)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	commonv1 "buf.build/gen/go/admiral/common/protocolbuffers/go/admiral/common/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
@@ -44,6 +45,16 @@ type mockClusterClient struct {
 }
 
 func (m *mockClusterClient) ListClusters(_ context.Context, _ *clusterv1.ListClustersRequest, _ ...grpc.CallOption) (*clusterv1.ListClustersResponse, error) {
+	return m.resp, m.err
+}
+
+type mockClusterTokenClient struct {
+	clusterv1.ClusterAPIClient
+	resp *clusterv1.ListClusterTokensResponse
+	err  error
+}
+
+func (m *mockClusterTokenClient) ListClusterTokens(_ context.Context, _ *clusterv1.ListClusterTokensRequest, _ ...grpc.CallOption) (*clusterv1.ListClusterTokensResponse, error) {
 	return m.resp, m.err
 }
 
@@ -172,6 +183,12 @@ func TestResolveEnvID(t *testing.T) {
 func TestResolveClusterID(t *testing.T) {
 	ctx := context.Background()
 
+	t.Run("idFlag set returns directly", func(t *testing.T) {
+		id, err := ResolveClusterID(ctx, nil, "", "cl-uuid")
+		require.NoError(t, err)
+		require.Equal(t, "cl-uuid", id)
+	})
+
 	t.Run("name found returns ID", func(t *testing.T) {
 		client := &mockClusterClient{
 			resp: &clusterv1.ListClustersResponse{
@@ -180,7 +197,7 @@ func TestResolveClusterID(t *testing.T) {
 				},
 			},
 		}
-		id, err := ResolveClusterID(ctx, client, "prod-cluster")
+		id, err := ResolveClusterID(ctx, client, "prod-cluster", "")
 		require.NoError(t, err)
 		require.Equal(t, "cl-123", id)
 	})
@@ -189,7 +206,7 @@ func TestResolveClusterID(t *testing.T) {
 		client := &mockClusterClient{
 			resp: &clusterv1.ListClustersResponse{},
 		}
-		_, err := ResolveClusterID(ctx, client, "ghost")
+		_, err := ResolveClusterID(ctx, client, "ghost", "")
 		require.ErrorContains(t, err, `cluster "ghost" not found`)
 	})
 
@@ -201,19 +218,92 @@ func TestResolveClusterID(t *testing.T) {
 				},
 			},
 		}
-		_, err := ResolveClusterID(ctx, client, "dup")
+		_, err := ResolveClusterID(ctx, client, "dup", "")
 		require.ErrorContains(t, err, "multiple clusters match")
 	})
 
-	t.Run("empty name", func(t *testing.T) {
-		_, err := ResolveClusterID(ctx, nil, "")
+	t.Run("empty name and empty idFlag", func(t *testing.T) {
+		_, err := ResolveClusterID(ctx, nil, "", "")
 		require.ErrorContains(t, err, "no cluster name")
 	})
 
 	t.Run("RPC error", func(t *testing.T) {
 		client := &mockClusterClient{err: fmt.Errorf("unavailable")}
-		_, err := ResolveClusterID(ctx, client, "prod")
+		_, err := ResolveClusterID(ctx, client, "prod", "")
 		require.ErrorContains(t, err, "looking up cluster")
 		require.ErrorContains(t, err, "unavailable")
+	})
+}
+
+// ---------------------------------------------------------------------------
+// ResolveClusterTokenID
+// ---------------------------------------------------------------------------
+
+func TestResolveClusterTokenID(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("idFlag set returns directly", func(t *testing.T) {
+		id, err := ResolveClusterTokenID(ctx, nil, "cl-1", "", "tok-uuid")
+		require.NoError(t, err)
+		require.Equal(t, "tok-uuid", id)
+	})
+
+	t.Run("name found returns ID", func(t *testing.T) {
+		client := &mockClusterTokenClient{
+			resp: &clusterv1.ListClusterTokensResponse{
+				AccessTokens: []*commonv1.AccessToken{
+					{Id: "tok-123", Name: "ci-deploy-key"},
+				},
+			},
+		}
+		id, err := ResolveClusterTokenID(ctx, client, "cl-1", "ci-deploy-key", "")
+		require.NoError(t, err)
+		require.Equal(t, "tok-123", id)
+	})
+
+	t.Run("client-side filter ignores non-matching names", func(t *testing.T) {
+		client := &mockClusterTokenClient{
+			resp: &clusterv1.ListClusterTokensResponse{
+				AccessTokens: []*commonv1.AccessToken{
+					{Id: "tok-1", Name: "bar"},
+					{Id: "tok-2", Name: "default"},
+				},
+			},
+		}
+		id, err := ResolveClusterTokenID(ctx, client, "cl-1", "bar", "")
+		require.NoError(t, err)
+		require.Equal(t, "tok-1", id)
+	})
+
+	t.Run("name not found", func(t *testing.T) {
+		client := &mockClusterTokenClient{
+			resp: &clusterv1.ListClusterTokensResponse{},
+		}
+		_, err := ResolveClusterTokenID(ctx, client, "cl-1", "ghost", "")
+		require.ErrorContains(t, err, `token "ghost" not found`)
+	})
+
+	t.Run("multiple matches", func(t *testing.T) {
+		client := &mockClusterTokenClient{
+			resp: &clusterv1.ListClusterTokensResponse{
+				AccessTokens: []*commonv1.AccessToken{
+					{Id: "t1", Name: "dup"}, {Id: "t2", Name: "dup"},
+				},
+			},
+		}
+		_, err := ResolveClusterTokenID(ctx, client, "cl-1", "dup", "")
+		require.ErrorContains(t, err, "multiple tokens match")
+	})
+
+	t.Run("empty name and empty idFlag", func(t *testing.T) {
+		_, err := ResolveClusterTokenID(ctx, nil, "cl-1", "", "")
+		require.ErrorContains(t, err, "no token name")
+	})
+
+	t.Run("RPC error", func(t *testing.T) {
+		client := &mockClusterTokenClient{err: fmt.Errorf("permission denied")}
+		_, err := ResolveClusterTokenID(ctx, client, "cl-1", "my-token", "")
+		require.ErrorContains(t, err, "looking up token")
+		require.ErrorContains(t, err, "permission denied")
 	})
 }

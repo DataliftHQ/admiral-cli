@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"fmt"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -12,26 +13,37 @@ import (
 )
 
 func newTokenCreateCmd(opts *factory.Options) *cobra.Command {
-	var name string
+	var (
+		clusterID string
+		name      string
+	)
 
 	cmd := &cobra.Command{
-		Use:   "create <cluster>",
+		Use:   "create [cluster]",
 		Short: "Create a cluster token",
-		Args:  cmdutil.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			clusterName := ""
+			if len(args) > 0 {
+				clusterName = args[0]
+			}
+			if clusterName == "" && clusterID == "" {
+				return fmt.Errorf("provide a cluster name or use --cluster-id")
+			}
+
 			c, err := factory.CreateClient(cmd.Context(), opts)
 			if err != nil {
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
-			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), args[0])
+			resolvedClusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), clusterName, clusterID)
 			if err != nil {
 				return err
 			}
 
 			resp, err := c.Cluster().CreateClusterToken(cmd.Context(), &clusterv1.CreateClusterTokenRequest{
-				ClusterId: clusterID,
+				ClusterId: resolvedClusterID,
 				Name:      name,
 			})
 			if err != nil {
@@ -58,6 +70,7 @@ func newTokenCreateCmd(opts *factory.Options) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&clusterID, "cluster-id", "", "cluster UUID (bypasses name resolution)")
 	cmd.Flags().StringVar(&name, "name", "", "display name for the token (required)")
 	_ = cmd.MarkFlagRequired("name")
 

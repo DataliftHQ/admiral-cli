@@ -87,7 +87,7 @@ func newCreateCmd(opts *factory.Options) *cobra.Command {
 				k8sCfg := &environmentv1.KubernetesConfig{}
 
 				if cmd.Flags().Changed("cluster") {
-					clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), cluster)
+					clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), cluster, "")
 					if err != nil {
 						return err
 					}

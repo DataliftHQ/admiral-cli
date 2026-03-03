@@ -46,16 +46,20 @@ func newListCmd(opts *factory.Options) *cobra.Command {
 			p := output.NewPrinter(opts.OutputFormat)
 			if err := p.PrintResource(resp, func(w *tabwriter.Writer) {
 				if opts.OutputFormat == output.FormatWide {
-					output.Writeln(w, "NAME\tHEALTH\tAGE\tCLUSTER-UID\tLABELS\tCREATED\tUPDATED")
+					output.Writeln(w, "ID\tNAME\tDESCRIPTION\tHEALTH\tCLUSTER-UID\tLABELS\tCREATED BY\tUPDATED BY\tCREATED\tUPDATED\tAGE")
 					for _, cl := range resp.Clusters {
-						output.Writef(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+						output.Writef(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+							cl.Id,
 							cl.Name,
+							cl.Description,
 							output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_"),
-							output.FormatAge(cl.CreatedAt),
 							cl.ClusterUid,
 							output.FormatLabels(cl.Labels),
+							cl.CreatedBy,
+							cl.UpdatedBy,
 							output.FormatTimestamp(cl.CreatedAt),
 							output.FormatTimestamp(cl.UpdatedAt),
+							output.FormatAge(cl.CreatedAt),
 						)
 					}
 				} else {

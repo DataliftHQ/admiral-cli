@@ -15,23 +15,32 @@ import (
 
 func newUpdateCmd(opts *factory.Options) *cobra.Command {
 	var (
+		id          string
 		labelStrs   []string
 		description string
 		newName     string
 	)
 
 	cmd := &cobra.Command{
-		Use:   "update <name>",
+		Use:   "update [name]",
 		Short: "Update a cluster",
-		Args:  cmdutil.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			name := ""
+			if len(args) > 0 {
+				name = args[0]
+			}
+			if name == "" && id == "" {
+				return fmt.Errorf("provide a cluster name or use --id")
+			}
+
 			c, err := factory.CreateClient(cmd.Context(), opts)
 			if err != nil {
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
-			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), args[0])
+			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), name, id)
 			if err != nil {
 				return err
 			}
@@ -83,6 +92,7 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&id, "id", "", "cluster UUID (bypasses name resolution)")
 	cmd.Flags().StringVar(&description, "description", "", "cluster description")
 	cmd.Flags().StringVar(&newName, "name", "", "rename the cluster")
 	cmdutil.AddLabelFlag(cmd, &labelStrs, "set a label (key=value, can be repeated)")

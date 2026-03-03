@@ -110,7 +110,7 @@ parent application. Use --id to look up by UUID directly.`,
 				k8sCfg := &environmentv1.KubernetesConfig{}
 
 				if cmd.Flags().Changed("cluster") {
-					clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), cluster)
+					clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), cluster, "")
 					if err != nil {
 						return err
 					}
