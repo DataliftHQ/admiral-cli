@@ -3,6 +3,7 @@ module go.admiral.io/cli
 go 1.25.5
 
 require (
+	buf.build/gen/go/admiral/common/protocolbuffers/go v1.36.11-20260226191532-6254b050493f.1
 	github.com/cli/browser v1.3.0
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/modelcontextprotocol/go-sdk v1.4.0
@@ -16,7 +17,6 @@ require (
 )
 
 require (
-	buf.build/gen/go/admiral/common/protocolbuffers/go v1.36.11-20260226191532-6254b050493f.1 // indirect
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260209202127-80ab13bee0bf.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect

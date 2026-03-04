@@ -10,9 +10,12 @@ func registerTools(s *mcp.Server, c sdkclient.AdmiralClient) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "admiral_query",
 		Description: "Query Admiral resources. Lists or gets applications, environments, " +
-			"and variables. Returns JSON. " +
+			"variables, clusters, cluster tokens, cluster status, workloads, and " +
+			"personal access tokens. Returns JSON. " +
 			"Scope for variables: omit app for global, provide app for app-scoped, " +
-			"provide app+env for environment-scoped.",
+			"provide app+env for environment-scoped. " +
+			"Cluster-scoped resources (cluster_token, cluster_status, workload) require " +
+			"cluster name or cluster_id.",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint: true,
 		},

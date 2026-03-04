@@ -25,7 +25,8 @@ func formatError(err error) string {
 	msg := err.Error()
 
 	// If it doesn't look like a gRPC error, return as-is.
-	if _, ok := status.FromError(err); !ok {
+	s, ok := status.FromError(err)
+	if !ok {
 		return msg
 	}
 
@@ -38,8 +39,15 @@ func formatError(err error) string {
 	// Find the last colon-separated segment that isn't just whitespace.
 	parts := strings.Split(cleaned, ": ")
 	if len(parts) > 1 {
-		return strings.TrimSpace(parts[len(parts)-1])
+		cleaned = strings.TrimSpace(parts[len(parts)-1])
+	} else {
+		cleaned = strings.TrimSpace(cleaned)
 	}
 
-	return strings.TrimSpace(cleaned)
+	// If the description was empty, fall back to the gRPC status code.
+	if cleaned == "" {
+		return s.Code().String()
+	}
+
+	return cleaned
 }

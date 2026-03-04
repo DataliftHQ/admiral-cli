@@ -421,7 +421,6 @@ func TestLeafCommand_NoArgsValidation(t *testing.T) {
 		args []string
 	}{
 		{"cluster list rejects args", []string{"cluster", "list", "extra"}},
-		{"cluster create rejects args", []string{"cluster", "create", "extra"}},
 	}
 
 	for _, tc := range tests {

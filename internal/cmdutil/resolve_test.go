@@ -12,6 +12,7 @@ import (
 	applicationv1 "go.admiral.io/sdk/proto/admiral/api/application/v1"
 	clusterv1 "go.admiral.io/sdk/proto/admiral/api/cluster/v1"
 	environmentv1 "go.admiral.io/sdk/proto/admiral/api/environment/v1"
+	userv1 "go.admiral.io/sdk/proto/admiral/api/user/v1"
 )
 
 // ---------------------------------------------------------------------------
@@ -305,5 +306,92 @@ func TestResolveClusterTokenID(t *testing.T) {
 		_, err := ResolveClusterTokenID(ctx, client, "cl-1", "my-token", "")
 		require.ErrorContains(t, err, "looking up token")
 		require.ErrorContains(t, err, "permission denied")
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Mock user client
+// ---------------------------------------------------------------------------
+
+type mockUserClient struct {
+	userv1.UserAPIClient
+	resp *userv1.ListPersonalAccessTokensResponse
+	err  error
+}
+
+func (m *mockUserClient) ListPersonalAccessTokens(_ context.Context, _ *userv1.ListPersonalAccessTokensRequest, _ ...grpc.CallOption) (*userv1.ListPersonalAccessTokensResponse, error) {
+	return m.resp, m.err
+}
+
+// ---------------------------------------------------------------------------
+// ResolvePersonalAccessTokenID
+// ---------------------------------------------------------------------------
+
+func TestResolvePersonalAccessTokenID(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("idFlag set returns directly", func(t *testing.T) {
+		id, err := ResolvePersonalAccessTokenID(ctx, nil, "", "pat-uuid")
+		require.NoError(t, err)
+		require.Equal(t, "pat-uuid", id)
+	})
+
+	t.Run("name found returns ID", func(t *testing.T) {
+		client := &mockUserClient{
+			resp: &userv1.ListPersonalAccessTokensResponse{
+				AccessTokens: []*commonv1.AccessToken{
+					{Id: "pat-123", Name: "ci-deploy"},
+				},
+			},
+		}
+		id, err := ResolvePersonalAccessTokenID(ctx, client, "ci-deploy", "")
+		require.NoError(t, err)
+		require.Equal(t, "pat-123", id)
+	})
+
+	t.Run("client-side filter ignores non-matching names", func(t *testing.T) {
+		client := &mockUserClient{
+			resp: &userv1.ListPersonalAccessTokensResponse{
+				AccessTokens: []*commonv1.AccessToken{
+					{Id: "pat-1", Name: "ci-deploy"},
+					{Id: "pat-2", Name: "local-dev"},
+				},
+			},
+		}
+		id, err := ResolvePersonalAccessTokenID(ctx, client, "ci-deploy", "")
+		require.NoError(t, err)
+		require.Equal(t, "pat-1", id)
+	})
+
+	t.Run("name not found", func(t *testing.T) {
+		client := &mockUserClient{
+			resp: &userv1.ListPersonalAccessTokensResponse{},
+		}
+		_, err := ResolvePersonalAccessTokenID(ctx, client, "ghost", "")
+		require.ErrorContains(t, err, `token "ghost" not found`)
+	})
+
+	t.Run("multiple matches", func(t *testing.T) {
+		client := &mockUserClient{
+			resp: &userv1.ListPersonalAccessTokensResponse{
+				AccessTokens: []*commonv1.AccessToken{
+					{Id: "p1", Name: "dup"}, {Id: "p2", Name: "dup"},
+				},
+			},
+		}
+		_, err := ResolvePersonalAccessTokenID(ctx, client, "dup", "")
+		require.ErrorContains(t, err, "multiple tokens match")
+	})
+
+	t.Run("empty name and empty idFlag", func(t *testing.T) {
+		_, err := ResolvePersonalAccessTokenID(ctx, nil, "", "")
+		require.ErrorContains(t, err, "no token name")
+	})
+
+	t.Run("RPC error", func(t *testing.T) {
+		client := &mockUserClient{err: fmt.Errorf("unauthorized")}
+		_, err := ResolvePersonalAccessTokenID(ctx, client, "my-token", "")
+		require.ErrorContains(t, err, "looking up token")
+		require.ErrorContains(t, err, "unauthorized")
 	})
 }
