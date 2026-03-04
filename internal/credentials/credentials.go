@@ -141,6 +141,31 @@ func ProactiveRefresh(configDir string, window time.Duration) error {
 	return err
 }
 
+// ForceRefresh unconditionally refreshes the stored token, ignoring the expiry
+// window. This is used by the auth-retry interceptor after a 401 response — the
+// token looked valid locally but was rejected by the server.
+func ForceRefresh(configDir string) (*TokenResult, error) {
+	if os.Getenv(EnvToken) != "" {
+		return nil, fmt.Errorf("cannot refresh environment-supplied token")
+	}
+
+	creds, err := readCredentials(configDir)
+	if err != nil {
+		return nil, fmt.Errorf("not logged in: run 'admiral auth login' first")
+	}
+
+	if creds.RefreshToken == "" || creds.TokenURL == "" {
+		return nil, fmt.Errorf("session expired: run 'admiral auth login' to re-authenticate")
+	}
+
+	refreshed, err := refreshCredentials(configDir, creds)
+	if err != nil {
+		return nil, fmt.Errorf("token refresh failed: %w", err)
+	}
+
+	return &TokenResult{Token: refreshed.AccessToken, AuthScheme: client.AuthSchemeBearer}, nil
+}
+
 // DeleteToken removes the credentials file.
 func DeleteToken(configDir string) error {
 	path := filepath.Join(configDir, credentialsFile)

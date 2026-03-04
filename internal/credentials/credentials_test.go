@@ -404,6 +404,53 @@ func TestCheckFilePermissions_MissingFile(t *testing.T) {
 	checkFilePermissions(filepath.Join(t.TempDir(), "nonexistent"))
 }
 
+func TestForceRefresh_EnvVarSet(t *testing.T) {
+	t.Setenv(EnvToken, "env-token")
+
+	_, err := ForceRefresh(t.TempDir())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "cannot refresh environment-supplied token")
+}
+
+func TestForceRefresh_NoCredentials(t *testing.T) {
+	os.Unsetenv(EnvToken)
+
+	_, err := ForceRefresh(t.TempDir())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not logged in")
+}
+
+func TestForceRefresh_NoRefreshToken(t *testing.T) {
+	dir := t.TempDir()
+	os.Unsetenv(EnvToken)
+
+	creds := &credentials{
+		AccessToken: "tok",
+		Expiry:      time.Now().Add(1 * time.Hour), // still valid
+	}
+	require.NoError(t, writeCredentials(dir, creds))
+
+	_, err := ForceRefresh(dir)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "session expired")
+}
+
+func TestForceRefresh_NoTokenURL(t *testing.T) {
+	dir := t.TempDir()
+	os.Unsetenv(EnvToken)
+
+	creds := &credentials{
+		AccessToken:  "tok",
+		RefreshToken: "rt",
+		// TokenURL intentionally empty
+	}
+	require.NoError(t, writeCredentials(dir, creds))
+
+	_, err := ForceRefresh(dir)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "session expired")
+}
+
 func containsStr(s, substr string) bool {
 	return len(s) >= len(substr) && searchStr(s, substr)
 }
