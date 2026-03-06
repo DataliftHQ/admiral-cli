@@ -58,7 +58,8 @@ Use --host 0.0.0.0 to listen on all interfaces.`,
 					Version: v.GitVersion,
 				},
 				&mcp.ServerOptions{
-					Logger: slog.Default(),
+					Logger:       slog.Default(),
+					Instructions: admiralInstructions,
 				},
 			)
 

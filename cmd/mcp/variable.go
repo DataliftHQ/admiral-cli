@@ -29,11 +29,11 @@ type SetVariableOutput struct {
 	Variable *variablev1.Variable `json:"variable"`
 }
 
-func handleSetVariable(c sdkclient.AdmiralClient) mcp.ToolHandlerFor[SetVariableInput, SetVariableOutput] {
-	return func(ctx context.Context, _ *mcp.CallToolRequest, input SetVariableInput) (*mcp.CallToolResult, SetVariableOutput, error) {
+func handleSetVariable(c sdkclient.AdmiralClient) mcp.ToolHandlerFor[SetVariableInput, any] {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, input SetVariableInput) (*mcp.CallToolResult, any, error) {
 		appID, envID, err := resolve.ScopeIDs(ctx, c.Application(), c.Environment(), input.App, input.Env)
 		if err != nil {
-			return nil, SetVariableOutput{}, err
+			return nil, nil, err
 		}
 
 		// Check if the variable already exists at this scope.
@@ -51,7 +51,7 @@ func createNewVariable(
 	c sdkclient.AdmiralClient,
 	input SetVariableInput,
 	appID, envID string,
-) (*mcp.CallToolResult, SetVariableOutput, error) {
+) (*mcp.CallToolResult, any, error) {
 	req := &variablev1.CreateVariableRequest{
 		Key:   input.Key,
 		Value: input.Value,
@@ -69,7 +69,7 @@ func createNewVariable(
 	if input.Type != "" {
 		vt, err := resolve.VariableType(input.Type)
 		if err != nil {
-			return nil, SetVariableOutput{}, err
+			return nil, nil, err
 		}
 		req.Type = vt
 	}
@@ -79,7 +79,7 @@ func createNewVariable(
 
 	resp, err := c.Variable().CreateVariable(ctx, req)
 	if err != nil {
-		return nil, SetVariableOutput{}, err
+		return nil, nil, err
 	}
 
 	return nil, SetVariableOutput{Action: "created", Variable: resp.Variable}, nil
@@ -90,7 +90,7 @@ func updateExistingVariable(
 	c sdkclient.AdmiralClient,
 	id string,
 	input SetVariableInput,
-) (*mcp.CallToolResult, SetVariableOutput, error) {
+) (*mcp.CallToolResult, any, error) {
 	variable := &variablev1.Variable{Id: id}
 	var paths []string
 
@@ -104,7 +104,7 @@ func updateExistingVariable(
 	if input.Type != "" {
 		vt, err := resolve.VariableType(input.Type)
 		if err != nil {
-			return nil, SetVariableOutput{}, err
+			return nil, nil, err
 		}
 		variable.Type = vt
 		paths = append(paths, "type")
@@ -119,7 +119,7 @@ func updateExistingVariable(
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: paths},
 	})
 	if err != nil {
-		return nil, SetVariableOutput{}, err
+		return nil, nil, err
 	}
 
 	return nil, SetVariableOutput{Action: "updated", Variable: resp.Variable}, nil
@@ -140,23 +140,23 @@ type DeleteVariableOutput struct {
 	ID      string `json:"id"`
 }
 
-func handleDeleteVariable(c sdkclient.AdmiralClient) mcp.ToolHandlerFor[DeleteVariableInput, DeleteVariableOutput] {
-	return func(ctx context.Context, _ *mcp.CallToolRequest, input DeleteVariableInput) (*mcp.CallToolResult, DeleteVariableOutput, error) {
+func handleDeleteVariable(c sdkclient.AdmiralClient) mcp.ToolHandlerFor[DeleteVariableInput, any] {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, input DeleteVariableInput) (*mcp.CallToolResult, any, error) {
 		id := input.ID
 
 		if id == "" {
 			if input.Key == "" {
-				return nil, DeleteVariableOutput{}, fmt.Errorf("variable key or id is required")
+				return nil, nil, fmt.Errorf("variable key or id is required")
 			}
 
 			appID, envID, err := resolve.ScopeIDs(ctx, c.Application(), c.Environment(), input.App, input.Env)
 			if err != nil {
-				return nil, DeleteVariableOutput{}, err
+				return nil, nil, err
 			}
 
 			id, err = resolve.VariableByKey(ctx, c.Variable(), input.Key, appID, envID)
 			if err != nil {
-				return nil, DeleteVariableOutput{}, err
+				return nil, nil, err
 			}
 		}
 
@@ -164,7 +164,7 @@ func handleDeleteVariable(c sdkclient.AdmiralClient) mcp.ToolHandlerFor[DeleteVa
 			VariableId: id,
 		})
 		if err != nil {
-			return nil, DeleteVariableOutput{}, err
+			return nil, nil, err
 		}
 
 		return nil, DeleteVariableOutput{

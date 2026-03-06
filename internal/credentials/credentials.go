@@ -236,6 +236,9 @@ func checkFilePermissions(path string) {
 	}
 }
 
+// refreshTimeout bounds how long we wait for the OAuth token endpoint to respond.
+const refreshTimeout = 10 * time.Second
+
 // refreshCredentials uses the refresh token to obtain a new access token and persists it.
 func refreshCredentials(configDir string, creds *credentials) (*credentials, error) {
 	// Set Expiry to a past time so the oauth2 library considers the token
@@ -256,7 +259,10 @@ func refreshCredentials(configDir string, creds *credentials) (*credentials, err
 		Endpoint: oauth2.Endpoint{TokenURL: creds.TokenURL},
 	}
 
-	refreshed, err := cfg.TokenSource(context.Background(), token).Token()
+	ctx, cancel := context.WithTimeout(context.Background(), refreshTimeout)
+	defer cancel()
+
+	refreshed, err := cfg.TokenSource(ctx, token).Token()
 	if err != nil {
 		return nil, err
 	}

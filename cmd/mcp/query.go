@@ -18,26 +18,29 @@ import (
 
 // QueryInput defines the input schema for the admiral_query tool.
 type QueryInput struct {
-	Resource  string `json:"resource" jsonschema:"Resource type to query,enum=app,enum=env,enum=variable,enum=cluster,enum=cluster_token,enum=cluster_status,enum=workload,enum=token"`
+	Resource  string `json:"resource" jsonschema:"Resource type to query,enum=app,enum=env,enum=variable,enum=cluster,enum=cluster_token,enum=cluster_status,enum=workload,enum=token,enum=whoami"`
 	Action    string `json:"action,omitempty" jsonschema:"Query action (default: list),enum=list,enum=get"`
 	App       string `json:"app,omitempty" jsonschema:"Application name"`
 	Env       string `json:"env,omitempty" jsonschema:"Environment name (requires app)"`
-	Cluster   string `json:"cluster,omitempty" jsonschema:"Cluster name (for cluster_token, cluster_status, workload queries)"`
+	Cluster   string `json:"cluster,omitempty" jsonschema:"Cluster name (for cluster-scoped resources)"`
 	ClusterID string `json:"cluster_id,omitempty" jsonschema:"Cluster UUID (bypasses cluster name resolution)"`
 	Key       string `json:"key,omitempty" jsonschema:"Variable key (for variable get)"`
 	ID        string `json:"id,omitempty" jsonschema:"Resource UUID (bypasses name resolution)"`
+	Filter    string `json:"filter,omitempty" jsonschema:"Filter expression for list actions (see server instructions for syntax)"`
 	PageSize  int32  `json:"page_size,omitempty" jsonschema:"Max results per page (default 50)"`
+	PageToken string `json:"page_token,omitempty" jsonschema:"Pagination token from a previous list response"`
 }
 
 // QueryOutput is the structured output from the query tool.
 type QueryOutput struct {
-	Resource string `json:"resource"`
-	Action   string `json:"action"`
-	Result   any    `json:"result"`
+	Resource      string `json:"resource"`
+	Action        string `json:"action"`
+	Result        any    `json:"result"`
+	NextPageToken string `json:"next_page_token,omitempty"`
 }
 
-func handleQuery(c sdkclient.AdmiralClient) mcp.ToolHandlerFor[QueryInput, QueryOutput] {
-	return func(ctx context.Context, _ *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, QueryOutput, error) {
+func handleQuery(c sdkclient.AdmiralClient) mcp.ToolHandlerFor[QueryInput, any] {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, any, error) {
 		action := input.Action
 		if action == "" {
 			action = "list"
@@ -48,49 +51,55 @@ func handleQuery(c sdkclient.AdmiralClient) mcp.ToolHandlerFor[QueryInput, Query
 			pageSize = 50
 		}
 
-		var result any
-		var err error
+		var (
+			result        any
+			nextPageToken string
+			err           error
+		)
 
 		switch input.Resource + "." + action {
 		case "variable.list":
-			result, err = queryVariableList(ctx, c, input, pageSize)
+			result, nextPageToken, err = queryVariableList(ctx, c, input, pageSize)
 		case "variable.get":
 			result, err = queryVariableGet(ctx, c, input)
 		case "app.list":
-			result, err = queryAppList(ctx, c, pageSize)
+			result, nextPageToken, err = queryAppList(ctx, c, input, pageSize)
 		case "app.get":
 			result, err = queryAppGet(ctx, c, input)
 		case "env.list":
-			result, err = queryEnvList(ctx, c, input, pageSize)
+			result, nextPageToken, err = queryEnvList(ctx, c, input, pageSize)
 		case "env.get":
 			result, err = queryEnvGet(ctx, c, input)
 		case "cluster.list":
-			result, err = queryClusterList(ctx, c, pageSize)
+			result, nextPageToken, err = queryClusterList(ctx, c, input, pageSize)
 		case "cluster.get":
 			result, err = queryClusterGet(ctx, c, input)
 		case "cluster_status.get":
 			result, err = queryClusterStatusGet(ctx, c, input)
 		case "cluster_token.list":
-			result, err = queryClusterTokenList(ctx, c, input, pageSize)
+			result, nextPageToken, err = queryClusterTokenList(ctx, c, input, pageSize)
 		case "cluster_token.get":
 			result, err = queryClusterTokenGet(ctx, c, input)
 		case "workload.list":
-			result, err = queryWorkloadList(ctx, c, input, pageSize)
+			result, nextPageToken, err = queryWorkloadList(ctx, c, input, pageSize)
 		case "token.list":
-			result, err = queryTokenList(ctx, c, pageSize)
+			result, nextPageToken, err = queryTokenList(ctx, c, input, pageSize)
 		case "token.get":
 			result, err = queryTokenGet(ctx, c, input)
+		case "whoami.get":
+			result, err = queryWhoami(ctx, c)
 		default:
-			return nil, QueryOutput{}, fmt.Errorf("unsupported query: %s.%s", input.Resource, action)
+			return nil, nil, fmt.Errorf("unsupported query: %s.%s", input.Resource, action)
 		}
 		if err != nil {
-			return nil, QueryOutput{}, err
+			return nil, nil, err
 		}
 
 		return nil, QueryOutput{
-			Resource: input.Resource,
-			Action:   action,
-			Result:   result,
+			Resource:      input.Resource,
+			Action:        action,
+			Result:        result,
+			NextPageToken: nextPageToken,
 		}, nil
 	}
 }
@@ -114,20 +123,30 @@ func resolveClusterInput(ctx context.Context, c sdkclient.AdmiralClient, input Q
 // Variable queries
 // ---------------------------------------------------------------------------
 
-func queryVariableList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, error) {
+func queryVariableList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, string, error) {
 	appID, envID, err := resolve.ScopeIDs(ctx, c.Application(), c.Environment(), input.App, input.Env)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	filter := resolve.VariableFilter(appID, envID)
+	if input.Filter != "" {
+		if filter != "" {
+			filter += " AND " + input.Filter
+		} else {
+			filter = input.Filter
+		}
 	}
 
 	resp, err := c.Variable().ListVariables(ctx, &variablev1.ListVariablesRequest{
-		Filter:   resolve.VariableFilter(appID, envID),
-		PageSize: pageSize,
+		Filter:    filter,
+		PageSize:  pageSize,
+		PageToken: input.PageToken,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return resp, nil
+	return resp, resp.NextPageToken, nil
 }
 
 func queryVariableGet(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput) (any, error) {
@@ -159,14 +178,16 @@ func queryVariableGet(ctx context.Context, c sdkclient.AdmiralClient, input Quer
 // App queries
 // ---------------------------------------------------------------------------
 
-func queryAppList(ctx context.Context, c sdkclient.AdmiralClient, pageSize int32) (any, error) {
+func queryAppList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, string, error) {
 	resp, err := c.Application().ListApplications(ctx, &applicationv1.ListApplicationsRequest{
-		PageSize: pageSize,
+		Filter:    input.Filter,
+		PageSize:  pageSize,
+		PageToken: input.PageToken,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return resp, nil
+	return resp, resp.NextPageToken, nil
 }
 
 func queryAppGet(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput) (any, error) {
@@ -220,38 +241,46 @@ func queryEnvGet(ctx context.Context, c sdkclient.AdmiralClient, input QueryInpu
 	return resp.Environment, nil
 }
 
-func queryEnvList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, error) {
+func queryEnvList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, string, error) {
 	if input.App == "" {
-		return nil, fmt.Errorf("app is required to list environments")
+		return nil, "", fmt.Errorf("app is required to list environments")
 	}
 
 	appID, _, err := resolve.ScopeIDs(ctx, c.Application(), c.Environment(), input.App, "")
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	filter := fmt.Sprintf("field['application_id'] = '%s'", appID)
+	if input.Filter != "" {
+		filter += " AND " + input.Filter
 	}
 
 	resp, err := c.Environment().ListEnvironments(ctx, &environmentv1.ListEnvironmentsRequest{
-		Filter:   fmt.Sprintf("field['application_id'] = '%s'", appID),
-		PageSize: pageSize,
+		Filter:    filter,
+		PageSize:  pageSize,
+		PageToken: input.PageToken,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return resp, nil
+	return resp, resp.NextPageToken, nil
 }
 
 // ---------------------------------------------------------------------------
 // Cluster queries
 // ---------------------------------------------------------------------------
 
-func queryClusterList(ctx context.Context, c sdkclient.AdmiralClient, pageSize int32) (any, error) {
+func queryClusterList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, string, error) {
 	resp, err := c.Cluster().ListClusters(ctx, &clusterv1.ListClustersRequest{
-		PageSize: pageSize,
+		Filter:    input.Filter,
+		PageSize:  pageSize,
+		PageToken: input.PageToken,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return resp, nil
+	return resp, resp.NextPageToken, nil
 }
 
 func queryClusterGet(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput) (any, error) {
@@ -304,20 +333,22 @@ func queryClusterStatusGet(ctx context.Context, c sdkclient.AdmiralClient, input
 // Cluster token queries
 // ---------------------------------------------------------------------------
 
-func queryClusterTokenList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, error) {
+func queryClusterTokenList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, string, error) {
 	clusterID, err := resolveClusterInput(ctx, c, input)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	resp, err := c.Cluster().ListClusterTokens(ctx, &clusterv1.ListClusterTokensRequest{
 		ClusterId: clusterID,
+		Filter:    input.Filter,
 		PageSize:  pageSize,
+		PageToken: input.PageToken,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return resp, nil
+	return resp, resp.NextPageToken, nil
 }
 
 func queryClusterTokenGet(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput) (any, error) {
@@ -345,34 +376,38 @@ func queryClusterTokenGet(ctx context.Context, c sdkclient.AdmiralClient, input 
 // Workload queries
 // ---------------------------------------------------------------------------
 
-func queryWorkloadList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, error) {
+func queryWorkloadList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, string, error) {
 	clusterID, err := resolveClusterInput(ctx, c, input)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	resp, err := c.Cluster().ListWorkloads(ctx, &clusterv1.ListWorkloadsRequest{
 		ClusterId: clusterID,
+		Filter:    input.Filter,
 		PageSize:  pageSize,
+		PageToken: input.PageToken,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return resp, nil
+	return resp, resp.NextPageToken, nil
 }
 
 // ---------------------------------------------------------------------------
 // Personal access token queries
 // ---------------------------------------------------------------------------
 
-func queryTokenList(ctx context.Context, c sdkclient.AdmiralClient, pageSize int32) (any, error) {
+func queryTokenList(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput, pageSize int32) (any, string, error) {
 	resp, err := c.User().ListPersonalAccessTokens(ctx, &userv1.ListPersonalAccessTokensRequest{
-		PageSize: pageSize,
+		Filter:    input.Filter,
+		PageSize:  pageSize,
+		PageToken: input.PageToken,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return resp, nil
+	return resp, resp.NextPageToken, nil
 }
 
 func queryTokenGet(ctx context.Context, c sdkclient.AdmiralClient, input QueryInput) (any, error) {
@@ -387,4 +422,16 @@ func queryTokenGet(ctx context.Context, c sdkclient.AdmiralClient, input QueryIn
 		return nil, err
 	}
 	return resp.AccessToken, nil
+}
+
+// ---------------------------------------------------------------------------
+// Whoami query
+// ---------------------------------------------------------------------------
+
+func queryWhoami(ctx context.Context, c sdkclient.AdmiralClient) (any, error) {
+	resp, err := c.User().GetUser(ctx, &userv1.GetUserRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetUser(), nil
 }
