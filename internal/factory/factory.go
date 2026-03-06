@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"google.golang.org/grpc"
+
 	"go.admiral.io/cli/internal/credentials"
 	"go.admiral.io/cli/internal/output"
 	"go.admiral.io/sdk/client"
@@ -32,12 +34,19 @@ func CreateClient(_ context.Context, opts *Options) (client.AdmiralClient, error
 		return nil, err
 	}
 
+	insecure := opts.Insecure || opts.PlainText
+
 	cfg := client.Config{
 		HostPort:   opts.ServerAddr,
 		AuthToken:  result.Token,
 		AuthScheme: result.AuthScheme,
 		ConnectionOptions: client.ConnectionOptions{
-			Insecure: opts.Insecure || opts.PlainText,
+			Insecure: insecure,
+			DialOptions: []grpc.DialOption{
+				grpc.WithChainUnaryInterceptor(
+					authRetryInterceptor(opts.ConfigDir, result.AuthScheme, insecure),
+				),
+			},
 		},
 	}
 

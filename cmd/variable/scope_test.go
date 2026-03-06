@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	variablev1 "go.admiral.io/sdk/proto/admiral/api/variable/v1"
 )
 
 func TestResolveScope(t *testing.T) {
@@ -56,8 +58,8 @@ func TestResolveScope(t *testing.T) {
 			wantScope: resolvedScope{Scope: scopeGlobal},
 		},
 		{
-			name:    "no app no global",
-			wantErr: "no app specified",
+			name:      "no app no global infers global",
+			wantScope: resolvedScope{Scope: scopeGlobal},
 		},
 		{
 			name:    "global with env",
@@ -209,4 +211,91 @@ func TestParseKV(t *testing.T) {
 			require.Equal(t, tt.wantV, v)
 		})
 	}
+}
+
+func TestFormatScope(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
+
+	tests := []struct {
+		name string
+		v    *variablev1.Variable
+		want string
+	}{
+		{
+			name: "global",
+			v:    &variablev1.Variable{},
+			want: "Global",
+		},
+		{
+			name: "app",
+			v:    &variablev1.Variable{ApplicationId: strPtr("app-123")},
+			want: "App",
+		},
+		{
+			name: "app+env",
+			v:    &variablev1.Variable{ApplicationId: strPtr("app-123"), EnvironmentId: strPtr("env-456")},
+			want: "App+Env",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, formatScope(tt.v))
+		})
+	}
+}
+
+func TestFormatValue(t *testing.T) {
+	tests := []struct {
+		name string
+		v    *variablev1.Variable
+		want string
+	}{
+		{
+			name: "plain value",
+			v:    &variablev1.Variable{Value: "hello"},
+			want: "hello",
+		},
+		{
+			name: "sensitive masked",
+			v:    &variablev1.Variable{Value: "secret", Sensitive: true},
+			want: "********",
+		},
+		{
+			name: "empty value",
+			v:    &variablev1.Variable{Value: ""},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, formatValue(tt.v))
+		})
+	}
+}
+
+func TestStringPtrOrNone(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
+
+	tests := []struct {
+		name  string
+		input *string
+		want  string
+	}{
+		{name: "nil", input: nil, want: "<none>"},
+		{name: "non-nil", input: strPtr("abc"), want: "abc"},
+		{name: "empty string", input: strPtr(""), want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, stringPtrOrNone(tt.input))
+		})
+	}
+}
+
+func TestFormatSensitive(t *testing.T) {
+	require.Equal(t, "Yes", formatSensitive(true))
+	require.Equal(t, "No", formatSensitive(false))
 }

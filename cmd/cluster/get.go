@@ -1,6 +1,8 @@
 package cluster
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"go.admiral.io/cli/internal/cmdutil"
@@ -10,20 +12,34 @@ import (
 )
 
 func newGetCmd(opts *factory.Options) *cobra.Command {
-	return &cobra.Command{
-		Use:                   "get <name>",
-		Short:                 "Get a cluster",
-		DisableFlagsInUseLine: true,
-		Args:                  cmdutil.ExactArgs(1),
+	var clusterID string
+
+	cmd := &cobra.Command{
+		Use:   "get [name]",
+		Short: "Get a cluster",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			name := ""
+			if len(args) > 0 {
+				name = args[0]
+			}
+			if name == "" && clusterID == "" {
+				return fmt.Errorf("provide a cluster name or use --id")
+			}
+
 			c, err := factory.CreateClient(cmd.Context(), opts)
 			if err != nil {
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
+			resolvedID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), name, clusterID)
+			if err != nil {
+				return err
+			}
+
 			resp, err := c.Cluster().GetCluster(cmd.Context(), &clusterv1.GetClusterRequest{
-				ClusterId: args[0],
+				ClusterId: resolvedID,
 			})
 			if err != nil {
 				return err
@@ -35,12 +51,16 @@ func newGetCmd(opts *factory.Options) *cobra.Command {
 			sections := []output.Section{
 				{
 					Details: []output.Detail{
+						{Key: "ID", Value: cl.Id},
 						{Key: "Name", Value: cl.Name},
+						{Key: "Description", Value: cl.Description},
 						{Key: "Health", Value: output.FormatEnum(cl.HealthStatus.String(), "CLUSTER_HEALTH_STATUS_")},
 						{Key: "Cluster UID", Value: cl.ClusterUid},
 						{Key: "Labels", Value: output.FormatLabels(cl.Labels)},
 						{Key: "Created", Value: output.FormatTimestamp(cl.CreatedAt)},
+						{Key: "Created By", Value: cl.CreatedBy},
 						{Key: "Updated", Value: output.FormatTimestamp(cl.UpdatedAt)},
+						{Key: "Updated By", Value: cl.UpdatedBy},
 						{Key: "Age", Value: output.FormatAge(cl.CreatedAt)},
 					},
 				},
@@ -49,4 +69,8 @@ func newGetCmd(opts *factory.Options) *cobra.Command {
 			return p.PrintDetail(resp, sections)
 		},
 	}
+
+	cmd.Flags().StringVar(&clusterID, "id", "", "cluster UUID (bypasses name resolution)")
+
+	return cmd
 }

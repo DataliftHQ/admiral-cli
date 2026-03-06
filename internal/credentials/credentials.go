@@ -141,6 +141,31 @@ func ProactiveRefresh(configDir string, window time.Duration) error {
 	return err
 }
 
+// ForceRefresh unconditionally refreshes the stored token, ignoring the expiry
+// window. This is used by the auth-retry interceptor after a 401 response — the
+// token looked valid locally but was rejected by the server.
+func ForceRefresh(configDir string) (*TokenResult, error) {
+	if os.Getenv(EnvToken) != "" {
+		return nil, fmt.Errorf("cannot refresh environment-supplied token")
+	}
+
+	creds, err := readCredentials(configDir)
+	if err != nil {
+		return nil, fmt.Errorf("not logged in: run 'admiral auth login' first")
+	}
+
+	if creds.RefreshToken == "" || creds.TokenURL == "" {
+		return nil, fmt.Errorf("session expired: run 'admiral auth login' to re-authenticate")
+	}
+
+	refreshed, err := refreshCredentials(configDir, creds)
+	if err != nil {
+		return nil, fmt.Errorf("token refresh failed: %w", err)
+	}
+
+	return &TokenResult{Token: refreshed.AccessToken, AuthScheme: client.AuthSchemeBearer}, nil
+}
+
 // DeleteToken removes the credentials file.
 func DeleteToken(configDir string) error {
 	path := filepath.Join(configDir, credentialsFile)
@@ -211,6 +236,9 @@ func checkFilePermissions(path string) {
 	}
 }
 
+// refreshTimeout bounds how long we wait for the OAuth token endpoint to respond.
+const refreshTimeout = 10 * time.Second
+
 // refreshCredentials uses the refresh token to obtain a new access token and persists it.
 func refreshCredentials(configDir string, creds *credentials) (*credentials, error) {
 	// Set Expiry to a past time so the oauth2 library considers the token
@@ -231,7 +259,10 @@ func refreshCredentials(configDir string, creds *credentials) (*credentials, err
 		Endpoint: oauth2.Endpoint{TokenURL: creds.TokenURL},
 	}
 
-	refreshed, err := cfg.TokenSource(context.Background(), token).Token()
+	ctx, cancel := context.WithTimeout(context.Background(), refreshTimeout)
+	defer cancel()
+
+	refreshed, err := cfg.TokenSource(ctx, token).Token()
 	if err != nil {
 		return nil, err
 	}

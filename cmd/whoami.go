@@ -10,7 +10,6 @@ import (
 	"go.admiral.io/cli/internal/credentials"
 	"go.admiral.io/cli/internal/factory"
 	"go.admiral.io/cli/internal/output"
-	"go.admiral.io/cli/internal/properties"
 	userv1 "go.admiral.io/sdk/proto/admiral/api/user/v1"
 )
 
@@ -31,16 +30,18 @@ func newWhoamiCmd(opts *factory.Options) *cobra.Command {
 				return fmt.Errorf("failed to get user info: %w", err)
 			}
 
+			user := resp.GetUser()
+
 			authType := "OAuth2"
 			if os.Getenv(credentials.EnvToken) != "" {
 				authType = "Token (ADMIRAL_TOKEN)"
 			}
 
 			details := []output.Detail{
-				{Key: "Email", Value: resp.GetEmail()},
-				{Key: "Display Name", Value: resp.GetDisplayName()},
-				{Key: "ID", Value: resp.GetId()},
-				{Key: "Organization", Value: resp.GetTenantId()},
+				{Key: "Email", Value: user.GetEmail()},
+				{Key: "Display Name", Value: user.GetDisplayName()},
+				{Key: "ID", Value: user.GetId()},
+				{Key: "Organization", Value: user.GetTenantId()},
 				{Key: "Auth Type", Value: authType},
 				{Key: "Server", Value: opts.ServerAddr},
 			}
@@ -52,12 +53,6 @@ func newWhoamiCmd(opts *factory.Options) *cobra.Command {
 					Key:   "Token Expires In",
 					Value: formatExpiresIn(tokenInfo.ExpiresIn()),
 				})
-			}
-
-			// Show active app context if set.
-			props, err := properties.Load(opts.ConfigDir)
-			if err == nil && props.App != "" {
-				details = append(details, output.Detail{Key: "Active App", Value: props.App})
 			}
 
 			p := output.NewPrinter(opts.OutputFormat)

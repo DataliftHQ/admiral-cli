@@ -14,6 +14,8 @@ import (
 	authcmd "go.admiral.io/cli/cmd/auth"
 	clustercmd "go.admiral.io/cli/cmd/cluster"
 	envcmd "go.admiral.io/cli/cmd/env"
+	mcpcmd "go.admiral.io/cli/cmd/mcp"
+	tokencmd "go.admiral.io/cli/cmd/token"
 	variablecmd "go.admiral.io/cli/cmd/variable"
 	"go.admiral.io/cli/internal/config"
 	"go.admiral.io/cli/internal/credentials"
@@ -35,7 +37,7 @@ func (cmd *rootCmd) Execute(args []string) {
 		if errors.As(err, &eerr) {
 			code = eerr.code
 		}
-		output.Writef(os.Stderr, "Error: %s\n", err)
+		output.Writef(os.Stderr, "Error: %s\n", formatError(err))
 		cmd.exit(code)
 	}
 }
@@ -140,13 +142,16 @@ func newRootCmd(ver version.Version, exit func(int)) *rootCmd {
 		appcmd.NewAppCmd(&factoryOpts).Cmd,
 		clustercmd.NewClusterCmd(&factoryOpts).Cmd,
 		envcmd.NewEnvCmd(&factoryOpts).Cmd,
+		tokencmd.NewTokenCmd(&factoryOpts).Cmd,
 		variablecmd.NewVariableCmd(&factoryOpts).Cmd,
 	)
+
+	// MCP server
+	cmd.AddCommand(mcpcmd.NewMCPCmd(&factoryOpts).Cmd)
 
 	// Utility commands
 	cmd.AddCommand(
 		newCompletionCmd(),
-		newUseCmd(&factoryOpts),
 		newVersionCmd(ver),
 		newWhoamiCmd(&factoryOpts),
 	)

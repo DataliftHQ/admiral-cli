@@ -24,6 +24,10 @@ build-all:
 release-snapshot:
 	./tools/goreleaser.sh release --snapshot --clean --skip=publish
 
+.PHONY: install # Build and install the binary to $GOPATH/bin.
+install: build
+	cp ./dist/admiral_$(shell go env GOOS)_$(shell go env GOARCH)*/admiral $(shell go env GOPATH)/bin/admiral
+
 .PHONY: run # Run the application locally.
 run: build
 	./dist/admiral_$(shell go env GOOS)_$(shell go env GOARCH)*/admiral

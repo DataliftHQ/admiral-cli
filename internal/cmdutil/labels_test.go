@@ -149,12 +149,12 @@ func TestBuildLabelFilter(t *testing.T) {
 		{
 			name:  "single",
 			input: []string{"region=us-east-1"},
-			want:  `labels.region = "us-east-1"`,
+			want:  `field['labels.region'] = 'us-east-1'`,
 		},
 		{
 			name:  "multiple joined with AND",
 			input: []string{"region=us-east-1", "env=prod"},
-			want:  `labels.region = "us-east-1" AND labels.env = "prod"`,
+			want:  `field['labels.region'] = 'us-east-1' AND field['labels.env'] = 'prod'`,
 		},
 		{
 			name:    "invalid format",

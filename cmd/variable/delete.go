@@ -1,19 +1,22 @@
 package variable
 
 import (
-	"os"
+	"fmt"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
-	"go.admiral.io/cli/internal/cmdutil"
 	"go.admiral.io/cli/internal/factory"
-	"go.admiral.io/cli/internal/properties"
+	"go.admiral.io/cli/internal/output"
+	"go.admiral.io/cli/internal/resolve"
+	variablev1 "go.admiral.io/sdk/proto/admiral/api/variable/v1"
 )
 
 func newDeleteCmd(opts *factory.Options) *cobra.Command {
 	var (
 		envFlag    string
 		globalFlag bool
+		varID      string
 		confirm    bool
 	)
 
@@ -22,69 +25,107 @@ func newDeleteCmd(opts *factory.Options) *cobra.Command {
 		Short: "Delete a variable",
 		Long: `Delete a variable by key.
 
-The app can be provided as a positional argument or resolved from the
-active context set via 'admiral use <app>'. Use --global for global variables
-(requires confirmation).`,
+The variable is resolved by key and scope. Use --id to look up by UUID directly.
+Requires --confirm to prevent accidental deletion.`,
 		Example: `  # Delete an app-scoped variable
-  admiral variable delete my-api IMAGE_TAG
+  admiral variable delete my-api IMAGE_TAG --confirm
 
   # Delete a variable for a specific environment
-  admiral variable delete my-api IMAGE_TAG -e staging
+  admiral variable delete my-api IMAGE_TAG -e staging --confirm
 
-  # Delete a global variable (with confirmation)
-  admiral variable delete --global LOG_FORMAT --confirm
+  # Delete a global variable
+  admiral variable delete LOG_FORMAT --confirm
+
+  # Delete by UUID
+  admiral variable delete --id 550e8400-e29b-41d4-a716-446655440000 --confirm
 
   # Use the active app context
   admiral use my-api
-  admiral variable delete IMAGE_TAG`,
-		Args: cmdutil.RangeArgs(1, 2),
+  admiral variable delete IMAGE_TAG --confirm`,
+		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			appArg, key, err := splitArgsWithKey(args)
-			if err != nil {
-				return err
-			}
+			var id, display string
 
-			props, err := properties.Load(opts.ConfigDir)
-			if err != nil {
-				return err
-			}
+			if varID != "" {
+				id = varID
+				display = varID
+			} else {
+				if len(args) == 0 {
+					return fmt.Errorf("variable key or --id is required")
+				}
 
-			rs, err := resolveScopeWithHelp(cmd, globalFlag, envFlag, appArg, props.App)
-			if err != nil {
-				return err
-			}
-
-			// GLOBAL scope requires confirmation.
-			if rs.Scope == scopeGlobal && !confirm {
-				ok, err := cmdutil.ConfirmPrompt(
-					cmd.InOrStdin(), cmd.ErrOrStderr(),
-					"Deleting a GLOBAL variable affects all apps. Continue?",
-				)
+				appArg, key, err := splitArgsWithKey(args)
 				if err != nil {
 					return err
 				}
-				if !ok {
-					cmdutil.Writef(cmd.ErrOrStderr(), "Aborted.\n")
-					return nil
+				display = key
+
+				rs, err := resolveScopeWithHelp(cmd, globalFlag, envFlag, appArg, "")
+				if err != nil {
+					return err
 				}
+
+				if !confirm {
+					return fmt.Errorf("use --confirm to delete variable %s", display)
+				}
+
+				c, err := factory.CreateClient(cmd.Context(), opts)
+				if err != nil {
+					return err
+				}
+				defer c.Close() //nolint:errcheck // best-effort cleanup
+
+				appID, envID, err := resolve.ScopeIDs(cmd.Context(), c.Application(), c.Environment(), rs.App, rs.Env)
+				if err != nil {
+					return err
+				}
+
+				id, err = resolve.VariableByKey(cmd.Context(), c.Variable(), key, appID, envID)
+				if err != nil {
+					return err
+				}
+
+				resp, err := c.Variable().DeleteVariable(cmd.Context(), &variablev1.DeleteVariableRequest{
+					VariableId: id,
+				})
+				if err != nil {
+					return err
+				}
+
+				p := output.NewPrinter(opts.OutputFormat)
+				return p.PrintResource(resp, func(w *tabwriter.Writer) {
+					output.Writef(w, "Variable %s deleted\n", display)
+				})
 			}
 
-			stub := stubResult{
-				Operation:   "delete",
-				Scope:       string(rs.Scope),
-				App:         rs.App,
-				Environment: rs.Env,
-				Key:         key,
-				Status:      stubStatus,
+			if !confirm {
+				return fmt.Errorf("use --confirm to delete variable %s", display)
 			}
 
-			return printStub(os.Stdout, opts.OutputFormat, stub)
+			c, err := factory.CreateClient(cmd.Context(), opts)
+			if err != nil {
+				return err
+			}
+			defer c.Close() //nolint:errcheck // best-effort cleanup
+
+			resp, err := c.Variable().DeleteVariable(cmd.Context(), &variablev1.DeleteVariableRequest{
+				VariableId: id,
+			})
+			if err != nil {
+				return err
+			}
+
+			p := output.NewPrinter(opts.OutputFormat)
+			return p.PrintResource(resp, func(w *tabwriter.Writer) {
+				output.Writef(w, "Variable %s deleted\n", display)
+			})
 		},
 	}
 
 	cmd.Flags().StringVarP(&envFlag, "env", "e", "", "target environment")
 	cmd.Flags().BoolVar(&globalFlag, "global", false, "delete variable at global scope")
-	cmd.Flags().BoolVar(&confirm, "confirm", false, "skip confirmation prompt")
+	cmd.Flags().StringVar(&varID, "id", "", "variable ID (UUID)")
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "confirm deletion")
 
 	return cmd
 }

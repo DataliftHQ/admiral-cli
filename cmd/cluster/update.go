@@ -14,17 +14,39 @@ import (
 )
 
 func newUpdateCmd(opts *factory.Options) *cobra.Command {
-	var labelStrs []string
+	var (
+		id          string
+		labelStrs   []string
+		description string
+		newName     string
+	)
 
 	cmd := &cobra.Command{
-		Use:   "update <name>",
+		Use:   "update [name]",
 		Short: "Update a cluster",
-		Args:  cmdutil.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
+			name := ""
+			if len(args) > 0 {
+				name = args[0]
+			}
+			if name == "" && id == "" {
+				return fmt.Errorf("provide a cluster name or use --id")
+			}
+
+			c, err := factory.CreateClient(cmd.Context(), opts)
+			if err != nil {
+				return err
+			}
+			defer c.Close() //nolint:errcheck // best-effort cleanup
+
+			clusterID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), name, id)
+			if err != nil {
+				return err
+			}
 
 			var paths []string
-			cluster := &clusterv1.Cluster{Id: name}
+			cluster := &clusterv1.Cluster{Id: clusterID}
 
 			if cmd.Flags().Changed("label") {
 				labels, err := cmdutil.ParseLabels(labelStrs)
@@ -35,15 +57,19 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 				paths = append(paths, "labels")
 			}
 
-			if len(paths) == 0 {
-				return fmt.Errorf("at least --label must be specified")
+			if cmd.Flags().Changed("description") {
+				cluster.Description = description
+				paths = append(paths, "description")
 			}
 
-			c, err := factory.CreateClient(cmd.Context(), opts)
-			if err != nil {
-				return err
+			if cmd.Flags().Changed("name") {
+				cluster.Name = newName
+				paths = append(paths, "name")
 			}
-			defer c.Close() //nolint:errcheck // best-effort cleanup
+
+			if len(paths) == 0 {
+				return fmt.Errorf("at least one of --label, --description, or --name must be specified")
+			}
 
 			resp, err := c.Cluster().UpdateCluster(cmd.Context(), &clusterv1.UpdateClusterRequest{
 				Cluster:    cluster,
@@ -66,6 +92,9 @@ func newUpdateCmd(opts *factory.Options) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&id, "id", "", "cluster UUID (bypasses name resolution)")
+	cmd.Flags().StringVar(&description, "description", "", "cluster description")
+	cmd.Flags().StringVar(&newName, "name", "", "rename the cluster")
 	cmdutil.AddLabelFlag(cmd, &labelStrs, "set a label (key=value, can be repeated)")
 
 	return cmd

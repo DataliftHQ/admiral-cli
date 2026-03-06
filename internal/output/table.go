@@ -32,7 +32,13 @@ func FormatLabels(labels map[string]string) string {
 	}
 	parts := make([]string, 0, len(labels))
 	for k, v := range labels {
+		if k == "" {
+			continue
+		}
 		parts = append(parts, fmt.Sprintf("%s=%s", k, v))
+	}
+	if len(parts) == 0 {
+		return "<none>"
 	}
 	return strings.Join(parts, ",")
 }

@@ -12,20 +12,34 @@ import (
 )
 
 func newStatusCmd(opts *factory.Options) *cobra.Command {
-	return &cobra.Command{
-		Use:                   "status <name>",
-		Short:                 "Get cluster status and telemetry",
-		DisableFlagsInUseLine: true,
-		Args:                  cmdutil.ExactArgs(1),
+	var clusterID string
+
+	cmd := &cobra.Command{
+		Use:   "status [name]",
+		Short: "Get cluster status and telemetry",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			name := ""
+			if len(args) > 0 {
+				name = args[0]
+			}
+			if name == "" && clusterID == "" {
+				return fmt.Errorf("provide a cluster name or use --id")
+			}
+
 			c, err := factory.CreateClient(cmd.Context(), opts)
 			if err != nil {
 				return err
 			}
 			defer c.Close() //nolint:errcheck // best-effort cleanup
 
+			resolvedID, err := cmdutil.ResolveClusterID(cmd.Context(), c.Cluster(), name, clusterID)
+			if err != nil {
+				return err
+			}
+
 			resp, err := c.Cluster().GetClusterStatus(cmd.Context(), &clusterv1.GetClusterStatusRequest{
-				ClusterId: args[0],
+				ClusterId: resolvedID,
 			})
 			if err != nil {
 				return err
@@ -90,4 +104,8 @@ func newStatusCmd(opts *factory.Options) *cobra.Command {
 			return p.PrintDetail(resp, sections)
 		},
 	}
+
+	cmd.Flags().StringVar(&clusterID, "id", "", "cluster UUID (bypasses name resolution)")
+
+	return cmd
 }
